@@ -1,0 +1,239 @@
+[
+  {
+    "id": "rc-demo-deposit-001",
+    "title": "최고 연 5.0% 적금 홍보물 심의",
+    "affiliate": "광주은행",
+    "productType": "deposit",
+    "channelType": ["poster", "sns"],
+    "plannedPublishDate": "2026-06-10",
+    "status": "analysis_complete",
+    "highestRiskLevel": "high",
+    "requester": "마케팅1팀 김서연",
+    "reviewer": "준법심의자 박민준",
+    "promotionalCopy": "최고 연 5.0% 적금\n지금 가입하면 누구나 최고금리 혜택!\n모바일에서 간편하게 가입하고 매월 혜택을 확인하세요.",
+    "disclosure": "우대금리는 급여이체, 카드 실적, 자동이체 조건 충족 시 적용됩니다. 기본금리는 별도 고지됩니다.",
+    "productDescription": "기본금리: 연 2.0%\n우대금리: 최대 연 3.0%p\n최고금리 연 5.0%는 모든 우대 조건을 충족한 경우에만 적용됩니다.",
+    "missingMaterials": ["terms", "internal_checklist"],
+    "files": [
+      {
+        "id": "file-deposit-poster",
+        "name": "deposit-poster.png",
+        "fileType": "promotional_creative",
+        "classificationConfidence": 0.94,
+        "parseStatus": "parsed"
+      },
+      {
+        "id": "file-deposit-product",
+        "name": "deposit-product-description.pdf",
+        "fileType": "product_description",
+        "classificationConfidence": 0.91,
+        "parseStatus": "parsed"
+      },
+      {
+        "id": "file-deposit-rate",
+        "name": "deposit-rate-table.xlsx",
+        "fileType": "rate_table",
+        "classificationConfidence": 0.87,
+        "parseStatus": "parsed"
+      }
+    ],
+    "issues": [
+      {
+        "id": "issue-deposit-rate",
+        "issueType": "RATE_DISPLAY_RISK",
+        "riskLevel": "high",
+        "title": "최고금리 조건 표시 불충분",
+        "targetText": "최고 연 5.0%",
+        "targetBbox": [16, 18, 68, 16],
+        "sourceAgents": ["product_terms_agent", "internal_policy_agent"],
+        "suggestedAction": "change_request",
+        "status": "open",
+        "description": "기본금리와 우대금리 조건이 본문에서 충분히 구분되지 않습니다.",
+        "suggestedCopy": "조건 충족 시 최고 연 5.0%, 기본금리 및 우대조건은 상품설명서를 확인해 주세요.",
+        "evidence": [
+          {
+            "id": "ev-deposit-product",
+            "sourceType": "product_doc",
+            "title": "정기적금 상품설명서",
+            "page": 3,
+            "section": "우대금리 조건",
+            "quoteSummary": "급여이체, 카드실적, 자동이체 조건 충족 시 우대금리 적용",
+            "relevanceScore": 0.87
+          },
+          {
+            "id": "ev-deposit-policy",
+            "sourceType": "internal_policy",
+            "title": "금리 광고 내부 체크리스트",
+            "page": 1,
+            "section": "최고금리 표시",
+            "quoteSummary": "최고금리 표시 시 기본금리와 우대 조건을 함께 표시",
+            "relevanceScore": 0.84
+          }
+        ]
+      },
+      {
+        "id": "issue-deposit-anyone",
+        "issueType": "MISLEADING_EXPRESSION",
+        "riskLevel": "high",
+        "title": "조건부 혜택의 무조건 표현",
+        "targetText": "누구나 최고금리 혜택",
+        "targetBbox": [18, 40, 78, 13],
+        "sourceAgents": ["creative_agent", "internal_policy_agent"],
+        "suggestedAction": "change_request",
+        "status": "open",
+        "description": "우대 조건 충족 필요성을 약화해 무조건 혜택처럼 오인될 수 있습니다.",
+        "suggestedCopy": "우대 조건 충족 고객에게 최고금리 혜택",
+        "evidence": [
+          {
+            "id": "ev-deposit-anyone-policy",
+            "sourceType": "internal_policy",
+            "title": "금리 광고 내부 체크리스트",
+            "page": 1,
+            "section": "조건부 혜택 표현",
+            "quoteSummary": "우대 조건이 있는 경우 실제 적용 금리가 달라질 수 있음을 명확히 고지",
+            "relevanceScore": 0.82
+          }
+        ]
+      },
+      {
+        "id": "issue-deposit-visual",
+        "issueType": "VISUAL_IMBALANCE",
+        "riskLevel": "caution",
+        "title": "제한 조건 시각적 약화",
+        "targetText": "우대 조건 고지",
+        "targetBbox": [18, 80, 76, 9],
+        "sourceAgents": ["creative_agent"],
+        "suggestedAction": "change_request",
+        "status": "open",
+        "description": "제한 조건이 하단 작은 글씨로 표시되어 혜택 문구 대비 인지성이 낮습니다.",
+        "suggestedCopy": "우대 조건을 본문 인접 영역에 같은 정보 위계로 표시",
+        "evidence": [
+          {
+            "id": "ev-deposit-visual-policy",
+            "sourceType": "internal_policy",
+            "title": "금리 광고 내부 체크리스트",
+            "page": 2,
+            "section": "고지 가독성",
+            "quoteSummary": "소비자가 우대 조건을 쉽게 인지할 수 있도록 표시",
+            "relevanceScore": 0.76
+          }
+        ]
+      }
+    ],
+    "expectedDraft": "최고금리 적용 조건이 홍보물 본문에서 충분히 명확하지 않아 소비자 오인 가능성이 있습니다. 기본금리와 우대금리 조건을 같은 화면에 병기하고, 우대 조건의 적용 범위를 명확히 표시하는 수정이 필요합니다."
+  },
+  {
+    "id": "rc-demo-loan-001",
+    "title": "최저금리 대출 홍보물 심의",
+    "affiliate": "전북은행",
+    "productType": "loan",
+    "channelType": ["poster", "banner"],
+    "plannedPublishDate": "2026-06-12",
+    "status": "analysis_complete",
+    "highestRiskLevel": "reject_recommended",
+    "requester": "개인여신마케팅팀 이도윤",
+    "reviewer": "준법심의자 박민준",
+    "promotionalCopy": "누구나 빠르게 승인 가능한 최저금리 대출\n모바일로 3분 신청, 오늘 바로 한도 확인!",
+    "disclosure": "대출 가능 여부와 적용 금리는 개인 신용평가 및 은행 내부 심사 기준에 따라 달라질 수 있습니다.",
+    "productDescription": "대출 가능 여부는 개인 신용평가 및 은행 내부 심사 기준에 따라 달라질 수 있습니다.\n적용 금리는 신용등급, 대출 기간, 거래 실적 등에 따라 차등 적용됩니다.",
+    "missingMaterials": ["terms"],
+    "files": [
+      {
+        "id": "file-loan-poster",
+        "name": "loan-poster.png",
+        "fileType": "promotional_creative",
+        "classificationConfidence": 0.93,
+        "parseStatus": "parsed"
+      },
+      {
+        "id": "file-loan-product",
+        "name": "loan-product-description.pdf",
+        "fileType": "product_description",
+        "classificationConfidence": 0.9,
+        "parseStatus": "parsed"
+      },
+      {
+        "id": "file-loan-checklist",
+        "name": "loan-internal-checklist.pdf",
+        "fileType": "checklist",
+        "classificationConfidence": 0.88,
+        "parseStatus": "parsed"
+      }
+    ],
+    "issues": [
+      {
+        "id": "issue-loan-anyone",
+        "issueType": "EXAGGERATED_CLAIM",
+        "riskLevel": "reject_recommended",
+        "title": "승인 보장 오인 표현",
+        "targetText": "누구나 빠르게 승인",
+        "targetBbox": [14, 20, 74, 16],
+        "sourceAgents": ["creative_agent", "internal_policy_agent"],
+        "suggestedAction": "reject",
+        "status": "open",
+        "description": "대출 승인이 보장되는 것처럼 오인될 수 있습니다.",
+        "suggestedCopy": "심사 기준 충족 시 대출 신청 가능",
+        "evidence": [
+          {
+            "id": "ev-loan-policy-approval",
+            "sourceType": "internal_policy",
+            "title": "대출 광고 내부 체크리스트",
+            "page": 1,
+            "section": "승인 보장 표현 제한",
+            "quoteSummary": "\"누구나\", \"확정\", \"보장\" 등 승인 보장 오인 표현 제한",
+            "relevanceScore": 0.92
+          }
+        ]
+      },
+      {
+        "id": "issue-loan-rate",
+        "issueType": "RATE_DISPLAY_RISK",
+        "riskLevel": "high",
+        "title": "최저금리 조건 미표시",
+        "targetText": "최저금리",
+        "targetBbox": [70, 20, 18, 16],
+        "sourceAgents": ["product_terms_agent", "internal_policy_agent"],
+        "suggestedAction": "change_request",
+        "status": "open",
+        "description": "최저금리 적용 조건과 대상이 함께 표시되지 않았습니다.",
+        "suggestedCopy": "신용등급 및 거래 조건에 따라 금리가 달라질 수 있음",
+        "evidence": [
+          {
+            "id": "ev-loan-product-rate",
+            "sourceType": "product_doc",
+            "title": "대출 상품설명서",
+            "page": 2,
+            "section": "금리 산정",
+            "quoteSummary": "적용 금리는 신용등급, 대출 기간, 거래 실적 등에 따라 차등 적용",
+            "relevanceScore": 0.86
+          }
+        ]
+      },
+      {
+        "id": "issue-loan-disclosure",
+        "issueType": "REQUIRED_DISCLOSURE_MISSING",
+        "riskLevel": "high",
+        "title": "심사 조건 고지 필요",
+        "targetText": "오늘 바로 한도 확인",
+        "targetBbox": [42, 50, 48, 13],
+        "sourceAgents": ["regulation_agent", "internal_policy_agent"],
+        "suggestedAction": "change_request",
+        "status": "open",
+        "description": "심사 조건과 개인별 차등 가능성 고지가 필요합니다.",
+        "suggestedCopy": "심사 결과에 따라 한도와 금리는 달라질 수 있음",
+        "evidence": [
+          {
+            "id": "ev-loan-policy-condition",
+            "sourceType": "internal_policy",
+            "title": "대출 광고 내부 체크리스트",
+            "page": 1,
+            "section": "필수 고지",
+            "quoteSummary": "최저금리 표시 시 적용 대상, 산정 기준, 적용 조건을 함께 고지",
+            "relevanceScore": 0.83
+          }
+        ]
+      }
+    ],
+    "expectedDraft": "\"누구나 승인\" 표현은 심사 결과와 무관하게 대출 승인이 보장되는 것처럼 오인될 수 있어 수정이 필요합니다. 또한 \"최저금리\" 표현은 적용 조건과 산정 기준을 함께 표시해야 하므로, 심사 조건 및 금리 적용 조건을 명확히 고지하는 방향으로 수정 요청합니다."
+  }
+]
