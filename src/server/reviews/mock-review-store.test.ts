@@ -21,6 +21,57 @@ describe("mock review store", () => {
     expect(result.missingMaterials).toEqual(["terms", "internal_checklist"]);
   });
 
+  it("creates an upload-backed review case with deterministic classification metadata", async () => {
+    const store = createMockReviewStore();
+
+    const result = await store.createReviewCaseFromUploadedFiles({
+      title: "실제 업로드 적금 홍보물",
+      affiliate: "광주은행",
+      productType: "deposit",
+      channelType: ["poster"],
+      plannedPublishDate: "2026-06-20",
+      files: [
+        {
+          name: "real-deposit-poster.png",
+          type: "image/png",
+          size: 2048
+        },
+        {
+          name: "real-deposit-rate-table.xlsx",
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          size: 4096
+        }
+      ]
+    });
+
+    expect(result.reviewCase).toMatchObject({
+      id: "rc-upload-001",
+      title: "실제 업로드 적금 홍보물",
+      status: "submitted",
+      highestRiskLevel: "info",
+      analysisNotice: "실제 업로드 건은 OCR/RAG 분석 전이므로 근거 부족 상태로 표시됩니다."
+    });
+    expect(result.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "real-deposit-poster.png",
+          fileType: "promotional_creative",
+          parseStatus: "pending",
+          storageProvider: "local",
+          storageKey: "local/rc-upload-001/real-deposit-poster.png",
+          sizeBytes: 2048
+        }),
+        expect.objectContaining({
+          name: "real-deposit-rate-table.xlsx",
+          fileType: "rate_table"
+        })
+      ])
+    );
+    expect(result.missingMaterials).toEqual(
+      expect.arrayContaining(["copy_draft", "product_description", "internal_checklist"])
+    );
+  });
+
   it("runs deterministic analysis and persists reviewer issue decisions", async () => {
     const store = createMockReviewStore();
     await store.createReviewCaseFromSamplePackage({ samplePackageId: "rc-demo-deposit-001" });

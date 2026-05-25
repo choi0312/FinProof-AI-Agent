@@ -31,7 +31,7 @@ export type ReviewFile = {
     | "misc";
   classificationConfidence: number;
   parseStatus: "pending" | "parsed" | "failed";
-  storageProvider?: "sample" | "s3";
+  storageProvider?: "sample" | "local" | "s3";
   storageKey?: string;
   contentType?: string;
   sizeBytes?: number;
@@ -84,6 +84,7 @@ export type ReviewCase = {
   issues: ReviewIssue[];
   expectedDraft: string;
   currentDraft?: string;
+  analysisNotice?: string;
 };
 
 export type ReviewSummary = Pick<

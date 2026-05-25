@@ -460,6 +460,25 @@ a.review-table__row:hover {
   align-items: center;
 }
 
+.issue-empty-state {
+  display: grid;
+  gap: 8px;
+  min-height: 132px;
+  padding: 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface-strong);
+}
+
+.issue-empty-state strong {
+  color: var(--ink);
+}
+
+.issue-empty-state span {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .poster {
   position: relative;
   min-height: 440px;
@@ -679,6 +698,58 @@ a.review-table__row:hover {
   margin-top: 14px;
 }
 
+.intake-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.upload-intake-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.upload-intake-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.upload-intake-form input,
+.upload-intake-form select {
+  min-height: 42px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 9px 10px;
+}
+
+.upload-intake-form input[type="file"] {
+  min-height: auto;
+  padding: 10px;
+}
+
+.upload-submit {
+  gap: 8px;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.form-error {
+  margin: 0;
+  color: var(--red);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .sample-package-card {
   display: grid;
   gap: 8px;
@@ -817,6 +888,25 @@ a.review-table__row:hover {
   gap: 8px;
   width: fit-content;
   margin-top: 16px;
+}
+
+.upload-empty-state,
+.upload-analysis-result {
+  display: grid;
+  gap: 12px;
+  align-content: center;
+  min-height: 172px;
+  color: var(--muted);
+}
+
+.upload-empty-state svg {
+  color: var(--teal);
+}
+
+.upload-analysis-result p {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.55;
 }
 
 .chat-composer {

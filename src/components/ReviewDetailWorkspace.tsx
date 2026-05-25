@@ -28,7 +28,7 @@ export function ReviewDetailWorkspace({ review }: { review: ReviewCase }) {
     riskLevel: RiskLevel;
     comment: string;
   } | null>(null);
-  const selectedIssue =
+  const selectedIssue: ReviewIssue | undefined =
     review.issues.find((issue) => issue.id === selectedIssueId) ?? review.issues[0];
 
   const visibleIssues = useMemo(
@@ -146,22 +146,32 @@ export function ReviewDetailWorkspace({ review }: { review: ReviewCase }) {
           </div>
 
           <div className="issue-list">
-            {visibleIssues.map((issue) => (
-              <button
-                key={issue.id}
-                className="issue-card"
-                data-active={selectedIssue?.id === issue.id}
-                type="button"
-                onClick={() => selectIssue(issue.id)}
-              >
-                <span className="issue-card__top">
-                  <RiskBadge level={issue.riskLevel} />
-                  <small>{issue.issueType}</small>
+            {visibleIssues.length > 0 ? (
+              visibleIssues.map((issue) => (
+                <button
+                  key={issue.id}
+                  className="issue-card"
+                  data-active={selectedIssue?.id === issue.id}
+                  type="button"
+                  onClick={() => selectIssue(issue.id)}
+                >
+                  <span className="issue-card__top">
+                    <RiskBadge level={issue.riskLevel} />
+                    <small>{issue.issueType}</small>
+                  </span>
+                  <strong>{issue.title}</strong>
+                  <span>{issue.targetText}</span>
+                </button>
+              ))
+            ) : (
+              <div className="issue-empty-state">
+                <strong>추가 확인 필요</strong>
+                <span>
+                  {review.analysisNotice ??
+                    "선택 가능한 AI 위험 후보가 없습니다. 업로드 자료와 근거를 추가 확인해 주세요."}
                 </span>
-                <strong>{issue.title}</strong>
-                <span>{issue.targetText}</span>
-              </button>
-            ))}
+              </div>
+            )}
           </div>
         </aside>
 
@@ -201,12 +211,14 @@ export function ReviewDetailWorkspace({ review }: { review: ReviewCase }) {
               id="rag-question"
               value={question}
               aria-label="RAG question"
+              disabled={!selectedIssue}
               onChange={(event) => setQuestion(event.target.value)}
             />
             <button
               className="icon-button"
               type="button"
               aria-label="질문 보내기"
+              disabled={!selectedIssue}
               onClick={handleAskQuestion}
             >
               <Send size={17} aria-hidden="true" />
@@ -214,7 +226,15 @@ export function ReviewDetailWorkspace({ review }: { review: ReviewCase }) {
           </div>
 
           <div className="chat-stack">
-            {chatResponses.length === 0 ? (
+            {!selectedIssue ? (
+              <div className="chat-answer chat-answer--empty">
+                <p className="chat-answer__question">선택 가능한 이슈가 없습니다.</p>
+                <p>
+                  {review.analysisNotice ??
+                    "선택 이슈가 생성된 후 근거 기반 질의를 사용할 수 있습니다."}
+                </p>
+              </div>
+            ) : chatResponses.length === 0 ? (
               <div className="chat-answer">
                 <p className="chat-answer__question">
                   우대금리 조건을 어느 수준까지 표시해야 하나요?
@@ -259,6 +279,7 @@ export function ReviewDetailWorkspace({ review }: { review: ReviewCase }) {
           <button
             className="button chat-mark-button"
             type="button"
+            disabled={!selectedIssue}
             onClick={markLatestResponseForDraft}
           >
             의견 초안에 반영
@@ -303,7 +324,7 @@ function CreativeViewer({
   copy: string;
   disclosure: string;
   issues: ReviewIssue[];
-  selectedIssue: ReviewIssue;
+  selectedIssue?: ReviewIssue;
   onSelectIssue: (id: string) => void;
 }) {
   return (

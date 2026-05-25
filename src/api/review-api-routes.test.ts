@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import type { ReviewChatResponse } from "@/domain/chat";
 import { resetDefaultReviewStoreForTests } from "@/server/reviews";
 import { POST as chatPOST } from "@/app/api/v1/review-cases/[caseId]/chat/route";
@@ -76,6 +78,88 @@ describe("review API routes", () => {
     expect(detailBody.reviewCase).toMatchObject({
       id: "rc-demo-deposit-001",
       status: "analysis_complete"
+    });
+  });
+
+  it("creates upload-backed review cases from multipart files", async () => {
+    const boundary = "----finproof-upload-test";
+    const multipartBody = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="title"',
+      "",
+      "실제 업로드 적금 홍보물",
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="affiliate"',
+      "",
+      "광주은행",
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="productType"',
+      "",
+      "deposit",
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="channelType"',
+      "",
+      "poster",
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="plannedPublishDate"',
+      "",
+      "2026-06-20",
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="files"; filename="real-deposit-poster.png"',
+      "Content-Type: image/png",
+      "",
+      "poster",
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="files"; filename="real-deposit-rate-table.xlsx"',
+      "Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "",
+      "rate",
+      `--${boundary}--`,
+      ""
+    ].join("\r\n");
+
+    const createResponse = await createPOST(
+      new Request("http://localhost/api/v1/review-cases", {
+        method: "POST",
+        headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+        body: multipartBody
+      })
+    );
+    const createBody = await createResponse.json();
+
+    expect(createResponse.status).toBe(201);
+    expect(createBody.reviewCase).toMatchObject({
+      id: "rc-upload-001",
+      status: "submitted",
+      analysisNotice: "실제 업로드 건은 OCR/RAG 분석 전이므로 근거 부족 상태로 표시됩니다."
+    });
+    expect(createBody.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "real-deposit-poster.png",
+          fileType: "promotional_creative",
+          storageProvider: "local"
+        }),
+        expect.objectContaining({
+          name: "real-deposit-rate-table.xlsx",
+          fileType: "rate_table"
+        })
+      ])
+    );
+    expect(createBody.missingMaterials).toEqual(expect.arrayContaining(["internal_checklist"]));
+
+    const analysisResponse = await analysisPOST(
+      jsonRequest("/api/v1/review-cases/rc-upload-001/analysis/start", {}),
+      params({ caseId: "rc-upload-001" })
+    );
+    const analysisBody = await analysisResponse.json();
+
+    expect(analysisResponse.status).toBe(200);
+    expect(analysisBody).toMatchObject({
+      reviewCaseId: "rc-upload-001",
+      status: "analysis_complete",
+      issueCount: 0,
+      analysisNotice: "실제 업로드 건은 OCR/RAG 분석 전이므로 근거 부족 상태로 표시됩니다."
     });
   });
 

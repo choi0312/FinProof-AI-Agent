@@ -1,13 +1,23 @@
+import { getRequiredMaterialRows } from "@/domain/intake";
 import { reviewCases } from "@/domain/reviews";
-import type { ReviewCase, ReviewFile, ReviewIssue, ReviewSummary } from "@/domain/types";
+import type {
+  ProductType,
+  ReviewCase,
+  ReviewFile,
+  ReviewIssue,
+  ReviewSummary
+} from "@/domain/types";
 import type {
   AnalysisResult,
+  CreateReviewCaseFromUploadedFilesInput,
   CreateReviewCaseFromSamplePackageInput,
   CreateReviewCaseResult,
   ListIssuesOptions,
   ReviewStore,
   SaveIssueDecisionInput
 } from "./review-store";
+
+const uploadAnalysisNotice = "실제 업로드 건은 OCR/RAG 분석 전이므로 근거 부족 상태로 표시됩니다.";
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -27,6 +37,75 @@ function inferContentType(fileName: string): string {
   }
 
   return "application/octet-stream";
+}
+
+function classifyUploadedFile(fileName: string, contentType: string): ReviewFile["fileType"] {
+  const normalizedName = fileName.toLowerCase();
+
+  if (
+    normalizedName.includes("poster") ||
+    normalizedName.includes("banner") ||
+    normalizedName.includes("creative") ||
+    contentType.startsWith("image/")
+  ) {
+    return "promotional_creative";
+  }
+
+  if (normalizedName.includes("copy") || normalizedName.includes("draft")) {
+    return "copy_draft";
+  }
+
+  if (
+    normalizedName.includes("product") ||
+    normalizedName.includes("description") ||
+    normalizedName.includes("상품")
+  ) {
+    return "product_description";
+  }
+
+  if (normalizedName.includes("terms") || normalizedName.includes("약관")) {
+    return "terms";
+  }
+
+  if (
+    normalizedName.includes("rate") ||
+    normalizedName.includes("금리") ||
+    normalizedName.endsWith(".xlsx")
+  ) {
+    return "rate_table";
+  }
+
+  if (normalizedName.includes("checklist") || normalizedName.includes("체크리스트")) {
+    return "checklist";
+  }
+
+  if (normalizedName.includes("url")) {
+    return "url_list";
+  }
+
+  return "misc";
+}
+
+function confidenceFor(fileType: ReviewFile["fileType"]): number {
+  if (fileType === "misc") {
+    return 0.62;
+  }
+
+  if (fileType === "promotional_creative" || fileType === "rate_table") {
+    return 0.78;
+  }
+
+  return 0.74;
+}
+
+function missingMaterialKeys(review: Pick<ReviewCase, "productType" | "files">): string[] {
+  return getRequiredMaterialRows(review)
+    .filter((row) => row.status === "missing")
+    .map((row) => (row.fileType === "checklist" ? "internal_checklist" : row.fileType));
+}
+
+function defaultExpectedDraft(productType: ProductType): string {
+  return `${productType} 상품 실제 업로드 자료는 접수되었습니다. 현재 Demo MVP에서는 OCR/RAG 분석 전이므로 파일 분류와 누락 자료 확인 결과를 기준으로 추가 확인이 필요합니다.`;
 }
 
 function withStorageMetadata(review: ReviewCase): ReviewCase {
@@ -61,6 +140,7 @@ export function createMockReviewStore(seedCases: ReviewCase[] = reviewCases): Re
     seedCases.map((review) => [review.id, withStorageMetadata(clone(review))])
   );
   const cases = new Map(Array.from(samples, ([id, review]) => [id, clone(review)]));
+  let uploadSequence = 1;
 
   return {
     async listReviewSummaries() {
@@ -97,6 +177,61 @@ export function createMockReviewStore(seedCases: ReviewCase[] = reviewCases): Re
       };
     },
 
+    async createReviewCaseFromUploadedFiles(
+      input: CreateReviewCaseFromUploadedFilesInput
+    ): Promise<CreateReviewCaseResult> {
+      const id = `rc-upload-${String(uploadSequence).padStart(3, "0")}`;
+      uploadSequence += 1;
+
+      const files = input.files.map<ReviewFile>((file, index) => {
+        const contentType = file.type || inferContentType(file.name);
+        const fileType = classifyUploadedFile(file.name, contentType);
+
+        return {
+          id: `file-upload-${String(index + 1).padStart(3, "0")}`,
+          name: file.name,
+          fileType,
+          classificationConfidence: confidenceFor(fileType),
+          parseStatus: "pending",
+          storageProvider: "local",
+          storageKey: `local/${id}/${file.name}`,
+          contentType,
+          sizeBytes: file.size
+        };
+      });
+
+      const reviewCase: ReviewCase = {
+        id,
+        title: input.title,
+        affiliate: input.affiliate,
+        productType: input.productType,
+        channelType: input.channelType,
+        plannedPublishDate: input.plannedPublishDate,
+        status: "submitted",
+        highestRiskLevel: "info",
+        requester: "업로드 요청자",
+        reviewer: "준법심의자 박민준",
+        promotionalCopy: "실제 업로드 자료 분석 대기",
+        disclosure: uploadAnalysisNotice,
+        productDescription: "실제 업로드 파일의 본문 추출은 아직 적용되지 않았습니다.",
+        missingMaterials: [],
+        files,
+        issues: [],
+        expectedDraft: defaultExpectedDraft(input.productType),
+        analysisNotice: uploadAnalysisNotice
+      };
+
+      reviewCase.missingMaterials = missingMaterialKeys(reviewCase);
+      cases.set(id, clone(reviewCase));
+
+      return {
+        reviewCase: clone(reviewCase),
+        files: clone(files),
+        missingMaterials: [...reviewCase.missingMaterials],
+        analysisStartHref: `/api/v1/review-cases/${id}/analysis/start`
+      };
+    },
+
     async startAnalysis(reviewCaseId): Promise<AnalysisResult | undefined> {
       const review = cases.get(reviewCaseId);
 
@@ -115,7 +250,8 @@ export function createMockReviewStore(seedCases: ReviewCase[] = reviewCases): Re
         reviewCaseId,
         status: "analysis_complete",
         issueCount: updatedReview.issues.length,
-        analysisHref: `/reviews/${reviewCaseId}`
+        analysisHref: `/reviews/${reviewCaseId}`,
+        analysisNotice: updatedReview.analysisNotice
       };
     },
 
