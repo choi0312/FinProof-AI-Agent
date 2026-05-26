@@ -2190,3 +2190,11 @@ a.review-table__row:hover {
   margin-right: var(--space-2);
   align-self: center;
 }
+
+/* Spec 2: IssueList risk-color border */
+.issue-card { position: relative; border-left: 4px solid var(--line); transition: 120ms ease; }
+.issue-card[data-risk="reject_recommended"] { border-left-color: var(--tone-reject); }
+.issue-card[data-risk="high"] { border-left-color: var(--tone-high); }
+.issue-card[data-risk="caution"] { border-left-color: var(--tone-caution); }
+.issue-card[data-risk="info"] { border-left-color: var(--tone-info); }
+.issue-card[data-active="true"] { background: var(--primary-soft); box-shadow: var(--shadow-card); }
