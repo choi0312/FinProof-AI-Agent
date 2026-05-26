@@ -2170,3 +2170,10 @@ a.review-table__row:hover {
   cursor: pointer;
 }
 .filter-bar__reset:hover { color: var(--text); border-color: var(--muted); }
+
+.queue-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
