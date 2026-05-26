@@ -623,7 +623,12 @@ export function ReviewDetailWorkspace({
           </div>
         </div>
 
-        <div className="chat-thread" aria-label="채팅 대화" aria-live="polite">
+        <div
+          className="chat-thread"
+          data-scroll-region="chat-history"
+          aria-label="채팅 대화"
+          aria-live="polite"
+        >
           {!selectedIssue ? (
             <div className="chat-empty-prompt">
               <strong>선택 가능한 이슈가 없습니다.</strong>

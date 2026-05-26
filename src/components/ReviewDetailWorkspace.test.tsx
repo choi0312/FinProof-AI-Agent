@@ -131,6 +131,7 @@ describe("ReviewDetailWorkspace", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("선택된 이슈의 근거를 기준으로 답변합니다.")).toBeInTheDocument();
     expect(screen.queryByText(/현재 근거상 조건부 혜택임을/)).not.toBeInTheDocument();
+    expect(chatThread).toHaveAttribute("data-scroll-region", "chat-history");
     expect(chatThread?.compareDocumentPosition(chatComposer as Node)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
