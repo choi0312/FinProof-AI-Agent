@@ -2198,3 +2198,6 @@ a.review-table__row:hover {
 .issue-card[data-risk="caution"] { border-left-color: var(--tone-caution); }
 .issue-card[data-risk="info"] { border-left-color: var(--tone-info); }
 .issue-card[data-active="true"] { background: var(--primary-soft); box-shadow: var(--shadow-card); }
+
+/* Spec 2: WorkbenchDrawer */
+.workbench-drawer__head { display: flex; justify-content: flex-end; padding: var(--space-2) var(--space-3); }
