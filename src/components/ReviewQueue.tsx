@@ -124,6 +124,23 @@ export function ReviewQueue(): JSX.Element {
     };
   }, [activeRole]);
 
+  useEffect(() => {
+    function onKey(event: KeyboardEvent): void {
+      if (
+        event.key === "/" &&
+        !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
+      ) {
+        const input = document.querySelector<HTMLInputElement>('input[aria-label="검색"]');
+        if (input) {
+          event.preventDefault();
+          input.focus();
+        }
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   async function startAnalysis(review: ReviewSummary): Promise<void> {
     setActiveAnalysisId(review.id);
     setLoadError(null);
