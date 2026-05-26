@@ -2177,3 +2177,7 @@ a.review-table__row:hover {
   gap: var(--space-4);
   margin-bottom: var(--space-6);
 }
+
+.review-table__row[data-clickable="true"] { cursor: pointer; }
+.review-table__row[data-clickable="true"]:hover { background: var(--surface-muted); }
+.queue-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-size: var(--font-size-xs); }
