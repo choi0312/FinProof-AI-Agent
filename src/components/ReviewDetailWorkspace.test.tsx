@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { getReviewCaseById } from "@/domain/reviews";
@@ -63,6 +63,7 @@ describe("ReviewDetailWorkspace", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     restoreUrlFunction("createObjectURL", originalCreateObjectURL);
@@ -719,6 +720,55 @@ describe("ReviewDetailWorkspace", () => {
       expect(screen.getByText("v2")).toBeInTheDocument();
     });
     expect(draftEditor).toHaveValue("저장 요청 초안 응답 전 추가 편집");
+    expect(screen.queryByText("의견 초안 v2 저장됨.")).not.toBeInTheDocument();
+  });
+
+  it("auto-dismisses the draft save notice after it is shown", async () => {
+    vi.useFakeTimers();
+    let resolvePatch!: (value: unknown) => void;
+    const patchPromise = new Promise((resolve) => {
+      resolvePatch = resolve;
+    });
+    const fetchMock = vi.fn().mockReturnValueOnce(patchPromise);
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <ReviewDetailWorkspace
+        review={{
+          ...getReviewCaseById("rc-demo-deposit-001")!,
+          currentDraft: "저장된 수정 요청 의견 초안",
+          currentDraftVersion: 1
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "의견 초안" }));
+    changeTextField("Opinion draft", "저장 후 자동으로 사라질 의견 초안");
+    fireEvent.click(screen.getByRole("button", { name: "의견 초안 저장" }));
+
+    await act(async () => {
+      resolvePatch({
+        ok: true,
+        json: async () => ({
+          draft: "저장 후 자동으로 사라질 의견 초안",
+          version: 2
+        })
+      });
+      await patchPromise;
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("의견 초안 v2 저장됨.")).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3999);
+    });
+    expect(screen.getByText("의견 초안 v2 저장됨.")).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
     expect(screen.queryByText("의견 초안 v2 저장됨.")).not.toBeInTheDocument();
   });
 

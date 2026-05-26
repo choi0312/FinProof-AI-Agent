@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent, type JSX } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type JSX } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Download,
@@ -62,6 +62,7 @@ const finalActionPriority: Array<NonNullable<ReviewIssue["finalAction"]>> = [
   "change_request",
   "approve"
 ];
+const NOTICE_AUTO_DISMISS_MS = 4000;
 
 function canMutateReview(role: RoleId) {
   return role === "reviewer" || role === "compliance_admin";
@@ -270,6 +271,22 @@ export function ReviewDetailWorkspace({
   const initialTab: IssueDetailTabKey =
     rawTab === "evidence" || rawTab === "opinion" ? rawTab : "checklist";
   const [activeTab, setActiveTabState] = useState<IssueDetailTabKey>(initialTab);
+
+  useEffect(() => {
+    if (!finalizedNotice && !reportNotice && !draftNotice) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setFinalizedNotice(null);
+      setReportNotice(null);
+      setDraftNotice(null);
+    }, NOTICE_AUTO_DISMISS_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [finalizedNotice, reportNotice, draftNotice]);
 
   function setActiveTab(next: IssueDetailTabKey): void {
     setActiveTabState(next);
