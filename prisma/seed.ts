@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import sampleReviewCases from "../src/data/sample-review-cases.json";
 import type { ReviewCase } from "../src/domain/types";
