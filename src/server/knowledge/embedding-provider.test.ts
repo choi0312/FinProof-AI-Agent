@@ -43,7 +43,7 @@ describe("embedding provider", () => {
     });
   });
 
-  it("prefers a dedicated embedding API key over the shared OpenAI key", async () => {
+  it("uses the shared OpenAI key even when an embedding-specific key is present", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       json: async () => ({
@@ -62,12 +62,12 @@ describe("embedding provider", () => {
 
     expect(fetchMock.mock.calls[0][1]?.headers).toEqual(
       expect.objectContaining({
-        authorization: "Bearer sk-embedding"
+        authorization: "Bearer sk-openai"
       })
     );
   });
 
-  it("selects OpenAI embeddings when provider is openai or an OpenAI key is present", () => {
+  it("selects OpenAI embeddings when provider is openai or the shared OpenAI key is present", () => {
     expect(
       createEmbeddingProvider({
         FINPROOF_EMBEDDING_PROVIDER: "openai",
@@ -80,6 +80,11 @@ describe("embedding provider", () => {
         FINPROOF_EMBEDDING_MODEL: "text-embedding-3-large"
       }).model
     ).toBe("text-embedding-3-large");
+    expect(
+      createEmbeddingProvider({
+        FINPROOF_EMBEDDING_API_KEY: "sk-embedding"
+      }).model
+    ).toBe("deterministic-embedding");
   });
 
   it("keeps deterministic embeddings when explicitly selected", async () => {

@@ -95,10 +95,7 @@ export function createHttpEmbeddingProvider(
       const response = await fetchImpl(endpoint, {
         method: "POST",
         headers: {
-          "content-type": "application/json",
-          ...(value(env, "FINPROOF_EMBEDDING_API_KEY")
-            ? { authorization: `Bearer ${value(env, "FINPROOF_EMBEDDING_API_KEY")}` }
-            : {})
+          "content-type": "application/json"
         },
         body: JSON.stringify({
           model,
@@ -131,7 +128,7 @@ export function createOpenAiEmbeddingProvider(
 ): EmbeddingProvider {
   const endpoint =
     value(env, "FINPROOF_EMBEDDING_ENDPOINT") ?? "https://api.openai.com/v1/embeddings";
-  const apiKey = value(env, "FINPROOF_EMBEDDING_API_KEY") ?? value(env, "OPENAI_API_KEY");
+  const apiKey = value(env, "OPENAI_API_KEY");
   const model = value(env, "FINPROOF_EMBEDDING_MODEL") ?? "text-embedding-3-small";
 
   if (!apiKey) {
@@ -191,7 +188,7 @@ export function createEmbeddingProvider(env: Env = process.env): EmbeddingProvid
     return createDeterministicEmbeddingProvider();
   }
 
-  return value(env, "FINPROOF_EMBEDDING_API_KEY") || value(env, "OPENAI_API_KEY")
+  return value(env, "OPENAI_API_KEY")
     ? createOpenAiEmbeddingProvider(env)
     : createDeterministicEmbeddingProvider();
 }

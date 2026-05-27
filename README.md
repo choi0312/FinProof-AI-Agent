@@ -94,6 +94,9 @@ FINPROOF_UPLOAD_SCAN_PROVIDER=http
 FINPROOF_STORAGE_ADAPTER=s3
 ```
 
+`OPENAI_API_KEY` is shared by the OpenAI text model router and OpenAI embeddings. FinProof does not
+expect a separate embedding-specific OpenAI key.
+
 After injecting real credentials, verify readiness and provision S3 with:
 
 ```bash

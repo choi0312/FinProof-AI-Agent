@@ -156,10 +156,10 @@ describe("backend runtime config", () => {
     expect(config.missing).toContain("OPENAI_API_KEY");
   });
 
-  it("accepts a dedicated embedding API key for OpenAI embeddings", () => {
+  it("uses the shared OpenAI key for OpenAI embeddings", () => {
     const config = getBackendRuntimeConfig({
       FINPROOF_EMBEDDING_PROVIDER: "openai",
-      FINPROOF_EMBEDDING_API_KEY: "sk-embedding",
+      OPENAI_API_KEY: "sk-openai",
       FINPROOF_EMBEDDING_MODEL: "text-embedding-3-large"
     });
 
@@ -169,6 +169,20 @@ describe("backend runtime config", () => {
       model: "text-embedding-3-large"
     });
     expect(config.missing).not.toContain("OPENAI_API_KEY");
+  });
+
+  it("does not configure OpenAI embeddings with an embedding-specific key alone", () => {
+    const config = getBackendRuntimeConfig({
+      FINPROOF_EMBEDDING_PROVIDER: "openai",
+      FINPROOF_EMBEDDING_API_KEY: "sk-embedding"
+    });
+
+    expect(config.embedding).toEqual({
+      provider: "openai",
+      configured: false,
+      model: "text-embedding-3-small"
+    });
+    expect(config.missing).toContain("OPENAI_API_KEY");
   });
 
   it("redacts secrets before exposing readiness", () => {

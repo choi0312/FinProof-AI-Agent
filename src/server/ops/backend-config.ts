@@ -101,7 +101,7 @@ export function getBackendRuntimeConfig(env: Env = process.env): BackendRuntimeC
       ? embeddingProviderValue
       : embeddingProviderValue === "deterministic"
         ? "deterministic"
-        : value(env, "FINPROOF_EMBEDDING_API_KEY") || value(env, "OPENAI_API_KEY")
+        : value(env, "OPENAI_API_KEY")
           ? "openai"
           : "deterministic";
   const embeddingModel = value(env, "FINPROOF_EMBEDDING_MODEL") ?? "text-embedding-3-small";
@@ -140,12 +140,7 @@ export function getBackendRuntimeConfig(env: Env = process.env): BackendRuntimeC
   requireWhen(missing, modelProvider === "gemini", env, "GEMINI_API_KEY");
   requireWhen(missing, modelProvider === "router", env, "OPENAI_API_KEY");
   requireWhen(missing, modelProvider === "router", env, "GEMINI_API_KEY");
-  requireWhen(
-    missing,
-    embeddingProvider === "openai" && !value(env, "FINPROOF_EMBEDDING_API_KEY"),
-    env,
-    "OPENAI_API_KEY"
-  );
+  requireWhen(missing, embeddingProvider === "openai", env, "OPENAI_API_KEY");
   requireWhen(missing, embeddingProvider === "http", env, "FINPROOF_EMBEDDING_ENDPOINT");
   requireWhen(missing, ocrProvider === "http", env, "FINPROOF_OCR_ENDPOINT");
   requireWhen(missing, ragProvider === "postgres", env, "DATABASE_URL");
@@ -238,9 +233,7 @@ export function getBackendRuntimeConfig(env: Env = process.env): BackendRuntimeC
       provider: embeddingProvider,
       configured:
         embeddingProvider === "deterministic" ||
-        (embeddingProvider === "openai" &&
-          (Boolean(value(env, "FINPROOF_EMBEDDING_API_KEY")) ||
-            Boolean(value(env, "OPENAI_API_KEY")))) ||
+        (embeddingProvider === "openai" && Boolean(value(env, "OPENAI_API_KEY"))) ||
         (embeddingProvider === "http" && Boolean(value(env, "FINPROOF_EMBEDDING_ENDPOINT"))),
       model: embeddingProvider === "deterministic" ? "deterministic-embedding" : embeddingModel
     },
@@ -282,7 +275,6 @@ export function getBackendRuntimeConfig(env: Env = process.env): BackendRuntimeC
       FINPROOF_AUTH_JWKS_URL: secretState(env, "FINPROOF_AUTH_JWKS_URL"),
       OPENAI_API_KEY: secretState(env, "OPENAI_API_KEY"),
       GEMINI_API_KEY: secretState(env, "GEMINI_API_KEY"),
-      FINPROOF_EMBEDDING_API_KEY: secretState(env, "FINPROOF_EMBEDDING_API_KEY"),
       FINPROOF_OCR_API_KEY: secretState(env, "FINPROOF_OCR_API_KEY"),
       FINPROOF_RERANK_API_KEY: secretState(env, "FINPROOF_RERANK_API_KEY"),
       FINPROOF_UPLOAD_SCAN_API_KEY: secretState(env, "FINPROOF_UPLOAD_SCAN_API_KEY"),

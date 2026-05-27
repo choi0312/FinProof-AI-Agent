@@ -38,6 +38,7 @@ DATABASE_URL=postgresql://prisma.<project-ref>:<password>@<region>.pooler.supaba
 DIRECT_URL=postgresql://prisma.<project-ref>:<password>@<region>.pooler.supabase.com:5432/postgres
 
 FINPROOF_MODEL_PROVIDER=router
+# Shared by OpenAI text routing and OpenAI embeddings.
 OPENAI_API_KEY=...
 GEMINI_API_KEY=...
 FINPROOF_MODEL_DEFAULT_TEXT=gpt-5-mini
