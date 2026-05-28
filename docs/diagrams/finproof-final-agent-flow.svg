@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1280" viewBox="0 0 1800 1280" role="img" aria-labelledby="title desc">
+  <title id="title">FinProof Final Agent Flow</title>
+  <desc id="desc">FinProof AI analysis flow with four domain sub-agents, optional evidence and case-history support agents, and a main compliance lead agent that makes the final risk judgment.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7f8fb; }
+      .title { font: 800 46px -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; fill: #162033; }
+      .subtitle { font: 500 20px -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; fill: #5b6575; }
+      .section { font: 800 17px -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; letter-spacing: .08em; fill: #46536a; }
+      .label { font: 780 25px -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; fill: #162033; }
+      .small { font: 500 17px -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; fill: #4f5b6d; }
+      .tiny { font: 650 15px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #526072; }
+      .callout { font: 750 17px -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; fill: #12345f; }
+      .node { stroke-width: 2; rx: 18; }
+      .input { fill: #eef4ff; stroke: #7da3d8; }
+      .retrieval { fill: #eff8f2; stroke: #7db48a; }
+      .domain { fill: #fff6e6; stroke: #d9a64f; }
+      .support { fill: #f3effb; stroke: #a486d7; }
+      .lead { fill: #eaf0fb; stroke: #285a9c; stroke-width: 3.5; }
+      .output { fill: #edf6f7; stroke: #69aeb6; }
+      .removed { fill: #ffffff; stroke: #cbd2dd; stroke-dasharray: 8 8; }
+      .arrow { stroke: #5d6878; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .softArrow { stroke: #8a95a6; stroke-width: 2.5; fill: none; marker-end: url(#softArrow); stroke-dasharray: 8 9; }
+      .leadArrow { stroke: #285a9c; stroke-width: 4; fill: none; marker-end: url(#leadArrow); }
+      .gateArrow { stroke: #8b6a23; stroke-width: 3; fill: none; marker-end: url(#gateArrow); }
+      .chip { fill: #fff; stroke: #d5dae3; }
+      .chipText { font: 700 15px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #445168; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5d6878"/>
+    </marker>
+    <marker id="softArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a95a6"/>
+    </marker>
+    <marker id="leadArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#285a9c"/>
+    </marker>
+    <marker id="gateArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b6a23"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1800" height="1280"/>
+  <text class="title" x="90" y="92">FinProof 최종 Agent Flow</text>
+  <text class="subtitle" x="92" y="130">도메인 Sub-Agent 결과를 팀장급 main_compliance Agent가 종합하고 최종 위험도를 판단하는 구조</text>
+
+  <text class="section" x="92" y="190">1. EVIDENCE PREPARATION</text>
+  <rect class="node input" x="90" y="216" width="292" height="122" rx="18"/>
+  <text class="label" x="122" y="260">심의자료</text>
+  <text class="small" x="122" y="292">홍보물, 약관, 상품자료</text>
+  <text class="tiny" x="122" y="318">review package</text>
+
+  <rect class="node input" x="446" y="216" width="292" height="122" rx="18"/>
+  <text class="label" x="478" y="260">OCR / Text</text>
+  <text class="small" x="478" y="292">본문과 confidence 추출</text>
+  <text class="tiny" x="478" y="318">extractedDocuments</text>
+
+  <rect class="node retrieval" x="802" y="216" width="340" height="122" rx="18"/>
+  <text class="label" x="834" y="260">RAG 검색</text>
+  <text class="small" x="834" y="292">상품자료 · 승인 지식 · 심의이력</text>
+  <text class="tiny" x="834" y="318">evidenceCandidates</text>
+
+  <rect class="node retrieval" x="1206" y="216" width="292" height="122" rx="18"/>
+  <text class="label" x="1238" y="260">Rerank</text>
+  <text class="small" x="1238" y="292">근거 후보 정렬</text>
+  <text class="tiny" x="1238" y="318">topK context</text>
+
+  <path class="arrow" d="M382 277 H441"/>
+  <path class="arrow" d="M738 277 H797"/>
+  <path class="arrow" d="M1142 277 H1201"/>
+
+  <text class="section" x="92" y="424">2. DOMAIN SUB-AGENTS · 기본 병렬 분석</text>
+
+  <rect class="node domain" x="90" y="454" width="360" height="142" rx="18"/>
+  <text class="label" x="122" y="498">홍보물 시안 전문가</text>
+  <text class="tiny" x="122" y="528">creative_review · default model</text>
+  <text class="small" x="122" y="560">오인, 과장, 단정, 시각 강조</text>
+
+  <rect class="node domain" x="510" y="454" width="360" height="142" rx="18"/>
+  <text class="label" x="542" y="498">상품·약관 전문가</text>
+  <text class="tiny" x="542" y="528">product_terms · default model</text>
+  <text class="small" x="542" y="560">상품자료와 홍보 주장 정합성</text>
+
+  <rect class="node domain" x="930" y="454" width="360" height="142" rx="18"/>
+  <text class="label" x="962" y="498">금융광고 법규 전문가</text>
+  <text class="tiny" x="962" y="528">regulation_agent · default model</text>
+  <text class="small" x="962" y="560">법규·감독규정 근거 판단</text>
+
+  <rect class="node domain" x="1350" y="454" width="360" height="142" rx="18"/>
+  <text class="label" x="1382" y="498">사내 심의기준 전문가</text>
+  <text class="tiny" x="1382" y="528">internal_policy_agent</text>
+  <text class="tiny" x="1382" y="554">default model</text>
+  <text class="small" x="1382" y="582">내부 체크리스트와 보수 기준</text>
+
+  <path class="softArrow" d="M1352 338 V396 C1352 426 270 424 270 450"/>
+  <path class="softArrow" d="M1352 338 V396 C1352 426 690 424 690 450"/>
+  <path class="softArrow" d="M1352 338 V396 C1352 426 1110 424 1110 450"/>
+  <path class="softArrow" d="M1352 338 V396 C1352 426 1530 424 1530 450"/>
+
+  <text class="section" x="92" y="690">3. SUPPORT AGENTS · 조건부 보강</text>
+
+  <rect class="node support" x="245" y="724" width="430" height="142" rx="18"/>
+  <text class="label" x="277" y="768">근거 검증 Agent</text>
+  <text class="tiny" x="277" y="798">evidence_verification</text>
+  <text class="small" x="277" y="830">high 이상, 낮은 confidence, 약한 근거일 때</text>
+
+  <rect class="node support" x="825" y="724" width="430" height="142" rx="18"/>
+  <text class="label" x="857" y="768">유사 심의사례 Agent</text>
+  <text class="tiny" x="857" y="798">case_search</text>
+  <text class="small" x="857" y="830">case_history 후보가 있을 때만 참고 ID 연결</text>
+
+  <rect class="node removed" x="1365" y="724" width="310" height="142" rx="18"/>
+  <text class="label" x="1397" y="768">제거됨</text>
+  <text class="tiny" x="1397" y="798">conflict_resolution</text>
+  <text class="small" x="1397" y="830">팀장급 Agent로 역할 통합</text>
+
+  <path class="gateArrow" d="M690 596 C610 640 520 670 460 720"/>
+  <path class="gateArrow" d="M1040 338 C1034 468 1038 612 1040 720"/>
+
+  <text class="section" x="92" y="982">4. LEAD JUDGMENT · 최종 판단</text>
+
+  <rect class="node lead" x="270" y="908" width="720" height="178" rx="22"/>
+  <text class="label" x="312" y="956">팀장급 Main Compliance Agent</text>
+  <text class="tiny" x="312" y="988">main_compliance · escalation_text / gpt-5.4</text>
+  <text class="small" x="312" y="1022">모든 priorFindings를 종합해 중복·충돌을 정리하고</text>
+  <text class="small" x="312" y="1050">최종 issue 후보와 최종 riskLevel을 반환</text>
+
+  <rect class="node output" x="1120" y="908" width="420" height="178" rx="22"/>
+  <text class="label" x="1152" y="956">최종 분석 결과</text>
+  <text class="tiny" x="1152" y="988">buildAnalysisIssues</text>
+  <text class="tiny" x="1152" y="1014">persistAnalysisOutputs</text>
+  <text class="small" x="1152" y="1048">팀장급 Agent finding이 최종 issue로 저장</text>
+  <text class="small" x="1152" y="1076">reviewCase.highestRiskLevel은 최종 issue 기준</text>
+
+  <path class="leadArrow" d="M460 866 C460 888 492 888 520 904"/>
+  <path class="leadArrow" d="M1040 866 C1008 888 946 890 895 906"/>
+  <path class="leadArrow" d="M270 596 C270 734 410 810 570 904"/>
+  <path class="leadArrow" d="M690 596 C690 740 660 820 652 904"/>
+  <path class="leadArrow" d="M1110 596 C1110 734 900 820 770 904"/>
+  <path class="leadArrow" d="M1530 596 C1530 752 1060 820 840 904"/>
+  <path class="leadArrow" d="M990 997 H1114"/>
+
+  <rect class="chip" x="90" y="1164" width="315" height="48" rx="24"/>
+  <text class="chipText" x="118" y="1194">Sub-agents: 후보 판단 생성</text>
+  <rect class="chip" x="430" y="1164" width="410" height="48" rx="24"/>
+  <text class="chipText" x="458" y="1194">Lead agent: 최종 위험도 판단</text>
+  <rect class="chip" x="865" y="1164" width="365" height="48" rx="24"/>
+  <text class="chipText" x="893" y="1194">Upper model: gpt-5.4 기본</text>
+  <rect class="chip" x="1255" y="1164" width="455" height="48" rx="24"/>
+  <text class="chipText" x="1283" y="1194">Sensitive output: highest precision option</text>
+</svg>

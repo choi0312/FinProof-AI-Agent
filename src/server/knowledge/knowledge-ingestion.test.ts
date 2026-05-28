@@ -1,6 +1,47 @@
 // @vitest-environment node
 
+import { execFileSync } from "node:child_process";
 import { createKnowledgeDocumentChunks, extractKnowledgeDocumentText } from "./knowledge-ingestion";
+
+function pdftotextAvailable(): boolean {
+  try {
+    execFileSync("which", ["pdftotext"], { stdio: "ignore" });
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function minimalPdfWithText(text: string): Uint8Array {
+  const stream = `BT /F1 24 Tf 100 700 Td (${text}) Tj ET`;
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    `<< /Length ${Buffer.byteLength(stream, "ascii")} >>\nstream\n${stream}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+
+  for (const [index, object] of objects.entries()) {
+    offsets.push(Buffer.byteLength(pdf, "ascii"));
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  }
+
+  const xrefOffset = Buffer.byteLength(pdf, "ascii");
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+  pdf += offsets
+    .slice(1)
+    .map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`)
+    .join("");
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n`;
+  pdf += `startxref\n${xrefOffset}\n%%EOF\n`;
+
+  return new TextEncoder().encode(pdf);
+}
 
 describe("knowledge document ingestion", () => {
   it("extracts text bodies and creates embedded chunks for vector search", async () => {
@@ -45,5 +86,16 @@ describe("knowledge document ingestion", () => {
         })
       })
     ]);
+  });
+
+  it.runIf(pdftotextAvailable())("extracts text from PDF attachments", async () => {
+    const text = await extractKnowledgeDocumentText({
+      fileName: "financial-ad-guideline.pdf",
+      contentType: "application/pdf",
+      body: minimalPdfWithText("maximum rate display conditions")
+    });
+
+    expect(text).toContain("maximum rate display conditions");
+    expect(text).not.toContain("메타데이터 기반");
   });
 });

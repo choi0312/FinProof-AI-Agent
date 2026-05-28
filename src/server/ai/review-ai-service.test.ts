@@ -75,6 +75,92 @@ describe("review AI service", () => {
     );
   });
 
+  it("includes approved knowledge document evidence in RAG chat prompts and citations", async () => {
+    const provider = modelProvider("승인된 지식문서 근거 답변");
+    const knowledgeEvidence = [
+      {
+        id: "knowledge-evidence-rate-ad-rule",
+        sourceType: "law" as const,
+        documentId: "knowledge-rate-ad-rule",
+        chunkId: "chunk-rate-ad-rule-001",
+        version: "2026.05",
+        effectiveFrom: "2026-05-01",
+        title: "금융규제 가이드라인",
+        section: "최고 금리 표시 조건",
+        quoteSummary: "최고금리는 우대조건 및 적용대상과 함께 명확히 표시해야 합니다.",
+        relevanceScore: 0.94
+      }
+    ];
+
+    const response = await answerReviewQuestionWithModel(
+      {
+        review,
+        issue,
+        question: "금융규제 가이드라인에서 최고 금리 표시 조건을 알려줘",
+        knowledgeEvidence
+      },
+      provider
+    );
+
+    expect(response.evidence).toEqual(expect.arrayContaining(knowledgeEvidence));
+    expect(provider.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.stringContaining("금융규제 가이드라인")
+      })
+    );
+    expect(provider.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.stringContaining("최고금리는 우대조건 및 적용대상과 함께 명확히 표시해야 합니다.")
+      })
+    );
+  });
+
+  it("removes uploaded file names from chat answer text", async () => {
+    const uploadedFileName = "finproof-pipeline-retest-20260527.txt";
+    const provider = modelProvider(
+      `${uploadedFileName} 기준으로 우대 조건을 인접 고지해야 합니다.`
+    );
+    const response = await answerReviewQuestionWithModel(
+      {
+        review,
+        issue: {
+          ...issue,
+          evidence: [
+            {
+              id: "evidence-uploaded-file",
+              sourceType: "product_doc",
+              title: uploadedFileName,
+              quoteSummary: "우대금리 조건",
+              relevanceScore: 0.92
+            }
+          ]
+        },
+        question: "이 문구의 근거를 확인해줘"
+      },
+      provider
+    );
+
+    expect(response.content).toBe("업로드 자료 기준으로 우대 조건을 인접 고지해야 합니다.");
+  });
+
+  it("removes internal approved knowledge evidence ids from chat answer text", async () => {
+    const provider = modelProvider(
+      "근거: 「금융규제 가이드라인」(광고 정보 일부 제외 시 소비자 오인 방지 관련, approvedKnowledgeEvidence 008)"
+    );
+    const response = await answerReviewQuestionWithModel(
+      {
+        review,
+        issue,
+        question: "근거를 알려줘"
+      },
+      provider
+    );
+
+    expect(response.content).toBe(
+      "근거: 「금융규제 가이드라인」(광고 정보 일부 제외 시 소비자 오인 방지 관련)"
+    );
+  });
+
   it("uses model text for draft generation", async () => {
     const provider = modelProvider("모델 수정 요청 초안");
     const draft = await generateDraftWithModel(review, [], provider);

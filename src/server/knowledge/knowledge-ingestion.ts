@@ -1,9 +1,16 @@
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { promisify } from "node:util";
 import JSZip from "jszip";
 import type { EvidenceChunk } from "@/domain/types";
 import {
   createEmbeddingProvider,
   type EmbeddingProvider
 } from "@/server/knowledge/embedding-provider";
+
+const execFileAsync = promisify(execFile);
 
 export type KnowledgeDocumentTextInput = {
   fileName: string;
@@ -75,6 +82,28 @@ async function extractDocxText(body: Uint8Array): Promise<string | undefined> {
   return documentXml ? xmlText(documentXml) : undefined;
 }
 
+async function extractPdfText(body: Uint8Array): Promise<string | undefined> {
+  const workDir = await mkdtemp(path.join(tmpdir(), "finproof-pdf-"));
+  const pdfPath = path.join(workDir, "input.pdf");
+  const textPath = path.join(workDir, "output.txt");
+
+  try {
+    await writeFile(pdfPath, body);
+    await execFileAsync("pdftotext", ["-layout", pdfPath, textPath], {
+      timeout: 15_000,
+      maxBuffer: 10 * 1024 * 1024
+    });
+
+    const text = normalizeText(await readFile(textPath, "utf8"));
+
+    return text || undefined;
+  } catch {
+    return undefined;
+  } finally {
+    await rm(workDir, { recursive: true, force: true });
+  }
+}
+
 export async function extractKnowledgeDocumentText({
   fileName,
   contentType,
@@ -90,6 +119,14 @@ export async function extractKnowledgeDocumentText({
 
     if (docxText) {
       return docxText;
+    }
+  }
+
+  if (normalizedType.includes("pdf") || fileName.toLowerCase().endsWith(".pdf")) {
+    const pdfText = await extractPdfText(body);
+
+    if (pdfText) {
+      return pdfText;
     }
   }
 

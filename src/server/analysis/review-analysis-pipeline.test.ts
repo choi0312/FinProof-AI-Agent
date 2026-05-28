@@ -1,5 +1,5 @@
 import type { ReviewCase } from "@/domain/types";
-import { createReviewAnalysisPipeline } from "./review-analysis-pipeline";
+import { createGeminiOcrProvider, createReviewAnalysisPipeline } from "./review-analysis-pipeline";
 import type { ModelProvider } from "@/server/ai/model-provider";
 import type { ReviewStoreScope } from "@/server/reviews";
 
@@ -116,6 +116,94 @@ describe("review analysis pipeline", () => {
     );
   });
 
+  it("extracts visual file text with Gemini OCR using inline file bytes", async () => {
+    const pdfBytes = new TextEncoder().encode("%PDF-1.7 fake pdf bytes");
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      async json() {
+        return {
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      text: "최고 연 5.0%는 우대 조건 충족 시 적용됩니다.",
+                      confidence: 0.93
+                    })
+                  }
+                ]
+              }
+            }
+          ]
+        };
+      }
+    }));
+    const provider = createGeminiOcrProvider(
+      {
+        GEMINI_API_KEY: "gemini-real",
+        FINPROOF_OCR_MODEL: "gemini-2.5-flash-lite"
+      },
+      {
+        async getReviewFileBody(storageKey) {
+          expect(storageKey).toBe("s3://finproof-s3/reviews/rc-upload-001/file-upload-001/ad.pdf");
+
+          return pdfBytes;
+        }
+      },
+      fetchImpl
+    );
+
+    const documents = await provider.extract({
+      review,
+      files: [
+        {
+          ...review.files[0],
+          name: "ad.pdf",
+          contentType: "application/pdf",
+          storageKey: "s3://finproof-s3/reviews/rc-upload-001/file-upload-001/ad.pdf"
+        }
+      ]
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "content-type": "application/json",
+          "x-goog-api-key": "gemini-real"
+        })
+      })
+    );
+    const requestInit = fetchImpl.mock.calls[0]?.[1] as RequestInit;
+    const payload = JSON.parse(String(requestInit.body)) as {
+      contents: { parts: Array<Record<string, unknown>> }[];
+    };
+    expect(payload.contents[0]?.parts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          inlineData: {
+            mimeType: "application/pdf",
+            data: Buffer.from(pdfBytes).toString("base64")
+          }
+        })
+      ])
+    );
+    expect(documents).toEqual([
+      {
+        fileId: "file-upload-001",
+        fileName: "ad.pdf",
+        storageKey: "s3://finproof-s3/reviews/rc-upload-001/file-upload-001/ad.pdf",
+        text: "최고 연 5.0%는 우대 조건 충족 시 적용됩니다.",
+        confidence: 0.93,
+        provider: "gemini-ocr"
+      }
+    ]);
+  });
+
   it("prioritizes extracted document text over metadata-only archive entries", async () => {
     const pipeline = createReviewAnalysisPipeline({
       ocrProvider: {
@@ -219,7 +307,85 @@ describe("review analysis pipeline", () => {
     });
   });
 
-  it("runs model-backed review subagents and stores their findings", async () => {
+  it("retrieves case history evidence from the review store when a scoped analysis runs", async () => {
+    const scope: ReviewStoreScope = {
+      tenantId: "tenant-demo",
+      actorUserId: "user-reviewer-demo",
+      actorRole: "reviewer"
+    };
+    const searchKnowledgeEvidence = vi.fn(async () => []);
+    const searchCaseHistoryEvidence = vi.fn(async () => [
+      {
+        id: "case-history-evidence-001",
+        sourceType: "case_history" as const,
+        documentId: "rc-2025-014",
+        title: "CASE-2025-014",
+        quoteSummary: "유사한 최고금리 표현이 조건 고지 위치 문제로 수정 요청되었습니다.",
+        relevanceScore: 0.9
+      }
+    ]);
+    const provider: ModelProvider = {
+      generateText: vi.fn(async ({ task }) => ({
+        provider: "openai",
+        model: "gpt-5.2",
+        text:
+          task === "creative_review"
+            ? JSON.stringify([
+                {
+                  title: "최고 금리 조건 병기 필요",
+                  riskLevel: "high",
+                  targetText: "누구나 최고 연 5.0%",
+                  description: "절대 표현과 최고 금리 표현이 함께 있어 조건 고지가 필요합니다.",
+                  suggestedAction: "change_request",
+                  suggestedCopy: "조건 충족 시 최고 연 5.0%로 문구를 조정해 주세요.",
+                  evidenceCandidateIds: ["case-history-evidence-001"],
+                  confidence: 0.86
+                }
+              ])
+            : "[]"
+      }))
+    };
+    const pipeline = createReviewAnalysisPipeline({
+      modelProvider: provider,
+      reviewStore: {
+        searchKnowledgeEvidence,
+        searchCaseHistoryEvidence
+      },
+      ocrProvider: {
+        async extract(input) {
+          return input.files.map((file) => ({
+            fileId: file.id,
+            fileName: file.name,
+            storageKey: file.storageKey,
+            text: "누구나 최고 연 5.0% 우대 조건 충족 시 적용됩니다.",
+            confidence: 0.94,
+            provider: "fixture-ocr"
+          }));
+        }
+      }
+    });
+
+    const artifacts = await pipeline.run({ review, scope });
+
+    expect(searchCaseHistoryEvidence).toHaveBeenCalledWith(
+      scope,
+      expect.objectContaining({
+        query: expect.stringContaining("최고 연 5.0%"),
+        productType: "deposit",
+        excludeReviewCaseId: "rc-upload-001"
+      })
+    );
+    expect(artifacts.evidenceCandidates).toEqual(
+      expect.arrayContaining([expect.objectContaining({ sourceType: "case_history" })])
+    );
+    expect(provider.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        task: "case_search"
+      })
+    );
+  });
+
+  it("runs the default domain review subagents and stores their findings", async () => {
     const provider: ModelProvider = {
       generateText: vi
         .fn()
@@ -278,6 +444,16 @@ describe("review analysis pipeline", () => {
     );
     expect(provider.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
+        task: "regulation_agent"
+      })
+    );
+    expect(provider.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        task: "internal_policy_agent"
+      })
+    );
+    expect(provider.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
         task: "evidence_verification"
       })
     );
@@ -286,6 +462,220 @@ describe("review analysis pipeline", () => {
         agent: "creative_review",
         title: "최고 금리 조건 병기 필요",
         evidenceCandidateIds: ["evidence-candidate-file-upload-001-001"]
+      })
+    ]);
+  });
+
+  it("still runs the main compliance lead agent when low-risk domain findings are strongly evidenced", async () => {
+    const provider: ModelProvider = {
+      generateText: vi.fn(async ({ task }) => ({
+        provider: "openai",
+        model: "gpt-5.2",
+        text:
+          task === "creative_review"
+            ? JSON.stringify([
+                {
+                  title: "혜택 조건 문구 확인",
+                  riskLevel: "caution",
+                  targetText: "최고 연 5.0%",
+                  description: "조건 문구가 함께 있어 주의 수준으로 확인합니다.",
+                  suggestedAction: "hold",
+                  suggestedCopy: "우대 조건 충족 시 적용된다는 문구를 유지해 주세요.",
+                  evidenceCandidateIds: ["evidence-candidate-file-upload-001-001"],
+                  confidence: 0.91
+                }
+              ])
+            : "[]"
+      }))
+    };
+    const pipeline = createReviewAnalysisPipeline({
+      modelProvider: provider,
+      ocrProvider: {
+        async extract(input) {
+          return input.files.map((file) => ({
+            fileId: file.id,
+            fileName: file.name,
+            storageKey: file.storageKey,
+            text: "최고 연 5.0% 우대 조건 충족 시 적용됩니다.",
+            confidence: 0.97,
+            provider: "fixture-ocr"
+          }));
+        }
+      }
+    });
+
+    await pipeline.run({ review });
+
+    const calledTasks = (provider.generateText as ReturnType<typeof vi.fn>).mock.calls.map(
+      ([input]) => input.task
+    );
+    expect(calledTasks).toEqual([
+      "creative_review",
+      "product_terms",
+      "regulation_agent",
+      "internal_policy_agent",
+      "main_compliance"
+    ]);
+  });
+
+  it("uses the main compliance lead agent for final risk judgment after conditional quality agents", async () => {
+    const provider: ModelProvider = {
+      generateText: vi.fn(async ({ task }) => {
+        if (task === "creative_review") {
+          return {
+            provider: "openai",
+            model: "gpt-5.2",
+            text: JSON.stringify([
+              {
+                title: "절대 표현과 금리 강조 충돌",
+                issueType: "ai_creative_review",
+                riskLevel: "high",
+                targetText: "누구나 최고 연 5.0%",
+                description: "절대 표현과 최고 금리 표현이 함께 있어 소비자 오인 가능성이 큽니다.",
+                suggestedAction: "change_request",
+                suggestedCopy: "조건 충족 시 최고 연 5.0%로 문구를 조정해 주세요.",
+                evidenceCandidateIds: ["evidence-candidate-file-upload-001-001"],
+                confidence: 0.88
+              }
+            ])
+          };
+        }
+
+        if (task === "product_terms") {
+          return {
+            provider: "openai",
+            model: "gpt-5.2",
+            text: JSON.stringify([
+              {
+                title: "상품자료상 조건 병기됨",
+                issueType: "ai_product_terms",
+                riskLevel: "info",
+                targetText: "우대 조건 충족 시 적용",
+                description: "상품자료에는 우대 조건이 확인됩니다.",
+                suggestedAction: "hold",
+                suggestedCopy: "조건 문구의 위치와 크기를 확인해 주세요.",
+                evidenceCandidateIds: ["case-history-evidence-001"],
+                confidence: 0.86
+              }
+            ])
+          };
+        }
+
+        if (task === "main_compliance") {
+          return {
+            provider: "openai",
+            model: "gpt-5.4",
+            text: JSON.stringify([
+              {
+                title: "팀장 검토: 최고 금리 표현 수정 필요",
+                issueType: "ai_main_compliance",
+                riskLevel: "reject_recommended",
+                targetText: "누구나 최고 연 5.0%",
+                description:
+                  "홍보물의 절대 표현과 상품자료 조건, 유사 사례를 종합하면 수정 전 승인은 어렵습니다.",
+                suggestedAction: "reject",
+                suggestedCopy: "조건 충족 시 최고 연 5.0%로 문구를 조정하고 우대 조건을 인접 표시해 주세요.",
+                evidenceCandidateIds: [
+                  "evidence-candidate-file-upload-001-001",
+                  "case-history-evidence-001"
+                ],
+                confidence: 0.91
+              }
+            ])
+          };
+        }
+
+        return {
+          provider: "openai",
+          model: "gpt-5.2",
+          text: "[]"
+        };
+      })
+    };
+    const pipeline = createReviewAnalysisPipeline({
+      modelProvider: provider,
+      ragRetriever: {
+        async retrieve() {
+          return [
+            {
+              id: "evidence-candidate-file-upload-001-001",
+              sourceType: "product_doc",
+              title: "poster.png",
+              quoteSummary: "누구나 최고 연 5.0% 우대 조건 충족 시 적용됩니다.",
+              relevanceScore: 0.94,
+              sourceFileId: "file-upload-001"
+            },
+            {
+              id: "case-history-evidence-001",
+              sourceType: "case_history",
+              documentId: "rc-2025-014",
+              title: "CASE-2025-014",
+              quoteSummary: "유사 금리 표현이 조건 고지 위치 문제로 수정 요청되었습니다.",
+              relevanceScore: 0.89
+            }
+          ];
+        }
+      },
+      ocrProvider: {
+        async extract(input) {
+          return input.files.map((file) => ({
+            fileId: file.id,
+            fileName: file.name,
+            storageKey: file.storageKey,
+            text: "누구나 최고 연 5.0% 우대 조건 충족 시 적용됩니다.",
+            confidence: 0.93,
+            provider: "fixture-ocr"
+          }));
+        }
+      }
+    });
+
+    const artifacts = await pipeline.run({ review });
+
+    const calledTasks = (provider.generateText as ReturnType<typeof vi.fn>).mock.calls.map(
+      ([input]) => input.task
+    );
+    expect(calledTasks).toEqual([
+      "creative_review",
+      "product_terms",
+      "regulation_agent",
+      "internal_policy_agent",
+      "evidence_verification",
+      "case_search",
+      "main_compliance"
+    ]);
+    expect(provider.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        task: "case_search",
+        routeContext: expect.objectContaining({
+          caseStronglyInfluencesJudgment: true
+        })
+      })
+    );
+    expect(provider.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        task: "main_compliance",
+        routeContext: expect.objectContaining({
+          riskLevel: "high"
+        })
+      })
+    );
+    const mainComplianceInput = (provider.generateText as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([input]) => input.task === "main_compliance"
+    )?.[0].input;
+    expect(JSON.parse(String(mainComplianceInput))).toEqual(
+      expect.objectContaining({
+        priorFindings: expect.arrayContaining([
+          expect.objectContaining({ agent: "creative_review", riskLevel: "high" }),
+          expect.objectContaining({ agent: "product_terms", riskLevel: "info" })
+        ])
+      })
+    );
+    expect(artifacts.agentFindings).toEqual([
+      expect.objectContaining({
+        agent: "main",
+        riskLevel: "reject_recommended",
+        title: "팀장 검토: 최고 금리 표현 수정 필요"
       })
     ]);
   });

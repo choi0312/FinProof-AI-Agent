@@ -32,9 +32,16 @@ describe("model router", () => {
     });
   });
 
-  it("uses the highest precision text model for sensitive conflict resolution", () => {
-    expect(selectModelRoute("conflict_resolution", { sensitiveOutput: true })).toEqual({
-      task: "conflict_resolution",
+  it("routes the main compliance lead agent to an upper text model", () => {
+    expect(selectModelRoute("main_compliance", {})).toEqual({
+      task: "main_compliance",
+      provider: "openai",
+      model: "gpt-5.4",
+      modelTier: "escalation_text",
+      escalationReason: "lead_agent_final_judgment"
+    });
+    expect(selectModelRoute("main_compliance", { sensitiveOutput: true })).toEqual({
+      task: "main_compliance",
       provider: "openai",
       model: "gpt-5.5",
       modelTier: "highest_precision_text",

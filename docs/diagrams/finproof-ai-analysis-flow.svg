@@ -1,0 +1,205 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1280" viewBox="0 0 1800 1280" role="img" aria-labelledby="title desc">
+  <title id="title">FinProof Agent AI Analysis Flow</title>
+  <desc id="desc">A flow diagram showing upload intake, AI analysis execution, persistence, and post-analysis chat, draft, and report flows.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#263447" />
+    </marker>
+    <linearGradient id="header" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="#123A5F" />
+      <stop offset="52%" stop-color="#1C6B6F" />
+      <stop offset="100%" stop-color="#6E4A9E" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#172033" flood-opacity="0.12" />
+    </filter>
+    <style>
+      .bg { fill: #f6f7f9; }
+      .panel { fill: #ffffff; stroke: #d8dee8; stroke-width: 1.3; }
+      .panel-title { font: 700 23px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #1d2b3a; }
+      .header-title { font: 800 40px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #ffffff; }
+      .header-sub { font: 500 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #e9f3f5; }
+      .box { fill: #ffffff; stroke: #bac5d4; stroke-width: 1.4; filter: url(#shadow); }
+      .box-blue { fill: #f1f7ff; stroke: #6d9bd2; }
+      .box-green { fill: #effaf5; stroke: #62a982; }
+      .box-purple { fill: #f6f2ff; stroke: #9271c7; }
+      .box-orange { fill: #fff7ec; stroke: #d89a4c; }
+      .box-red { fill: #fff1f2; stroke: #d06a76; }
+      .box-gray { fill: #f8fafc; stroke: #b9c3cf; }
+      .label { font: 700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #1d2b3a; }
+      .small { font: 500 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #4e5f73; }
+      .tiny { font: 600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #66768a; }
+      .code { font: 600 13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; fill: #34465c; }
+      .lane-caption { font: 700 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #44566c; }
+      .arrow { fill: none; stroke: #263447; stroke-width: 2.2; marker-end: url(#arrow); }
+      .arrow-soft { fill: none; stroke: #738297; stroke-width: 1.7; marker-end: url(#arrow); stroke-dasharray: 6 7; }
+      .divider { stroke: #d8dee8; stroke-width: 1.2; stroke-dasharray: 5 8; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1800" height="1280" />
+  <rect x="56" y="42" width="1688" height="102" rx="8" fill="url(#header)" />
+  <text class="header-title" x="90" y="93">FinProof Agent AI 분석 흐름</text>
+  <text class="header-sub" x="92" y="124">업로드 저장 → 분석 Job → OCR/RAG/AI 에이전트 → 이슈 저장 → 채팅/초안/보고서 생성</text>
+  <text class="tiny" x="1528" y="124">Generated 2026-05-27</text>
+
+  <rect class="panel" x="56" y="174" width="430" height="1018" rx="8" />
+  <rect class="panel" x="516" y="174" width="800" height="1018" rx="8" />
+  <rect class="panel" x="1346" y="174" width="398" height="1018" rx="8" />
+
+  <text class="panel-title" x="92" y="222">1. Intake &amp; Storage</text>
+  <text class="panel-title" x="552" y="222">2. AI Analysis Pipeline</text>
+  <text class="panel-title" x="1382" y="222">3. Post-analysis AI</text>
+
+  <!-- Intake lane -->
+  <rect class="box box-blue" x="110" y="270" width="322" height="78" rx="8" />
+  <text class="label" x="140" y="303">사용자 심의자료 업로드</text>
+  <text class="code" x="140" y="328">POST /api/v1/review-cases</text>
+
+  <rect class="box box-blue" x="110" y="392" width="322" height="94" rx="8" />
+  <text class="label" x="140" y="426">multipart form 파싱</text>
+  <text class="small" x="140" y="451">상품유형, 채널, 발행일, 파일 목록</text>
+  <text class="code" x="140" y="472">route.ts:createFromMultipart</text>
+
+  <rect class="box box-orange" x="110" y="530" width="322" height="96" rx="8" />
+  <text class="label" x="140" y="565">파일 정책 검증</text>
+  <text class="small" x="140" y="590">확장자, 크기, 압축 해제, 스캔</text>
+  <text class="code" x="140" y="611">validateUploadedFiles / uploadScanner</text>
+
+  <rect class="box box-green" x="110" y="670" width="322" height="102" rx="8" />
+  <text class="label" x="140" y="705">Storage Adapter 저장</text>
+  <text class="small" x="140" y="730">local-metadata 또는 S3</text>
+  <text class="code" x="140" y="751">putReviewFile(storageKey)</text>
+
+  <rect class="box box-green" x="110" y="816" width="322" height="106" rx="8" />
+  <text class="label" x="140" y="851">심의건 생성</text>
+  <text class="small" x="140" y="876">review_cases / review_files</text>
+  <text class="small" x="140" y="899">audit: review_case.create_from_upload</text>
+
+  <rect class="box box-purple" x="110" y="966" width="322" height="92" rx="8" />
+  <text class="label" x="140" y="1001">심의자 분석 시작</text>
+  <text class="code" x="140" y="1026">POST /analysis/start</text>
+  <text class="small" x="140" y="1048">role: reviewer / compliance_admin</text>
+
+  <path class="arrow" d="M271 348 L271 392" />
+  <path class="arrow" d="M271 486 L271 530" />
+  <path class="arrow" d="M271 626 L271 670" />
+  <path class="arrow" d="M271 772 L271 816" />
+  <path class="arrow" d="M271 922 L271 966" />
+
+  <!-- Analysis lane -->
+  <rect class="box box-purple" x="560" y="270" width="282" height="86" rx="8" />
+  <text class="label" x="590" y="306">ReviewService.startAnalysis</text>
+  <text class="small" x="590" y="331">상태 확인 후 Job 생성</text>
+
+  <rect class="box box-green" x="916" y="270" width="278" height="86" rx="8" />
+  <text class="label" x="946" y="306">analysis_jobs</text>
+  <text class="small" x="946" y="331">queued / running / completed</text>
+
+  <rect class="box box-gray" x="740" y="408" width="276" height="86" rx="8" />
+  <text class="label" x="770" y="443">실행 모드 분기</text>
+  <text class="code" x="770" y="468">inline 또는 queued</text>
+
+  <rect class="box box-purple" x="1062" y="408" width="202" height="86" rx="8" />
+  <text class="label" x="1092" y="443">Analysis Worker</text>
+  <text class="small" x="1092" y="468">claimNextAnalysisJob</text>
+
+  <rect class="box box-purple" x="668" y="548" width="326" height="90" rx="8" />
+  <text class="label" x="698" y="584">ReviewAnalysisPipeline.run</text>
+  <text class="small" x="698" y="610">분석 오케스트레이션 진입점</text>
+
+  <rect class="box box-orange" x="668" y="688" width="326" height="96" rx="8" />
+  <text class="label" x="698" y="724">OCR / Text Extraction</text>
+  <text class="small" x="698" y="749">텍스트형 파일은 저장 본문 읽기</text>
+  <text class="code" x="698" y="770">deterministic 또는 HTTP OCR</text>
+
+  <rect class="box box-blue" x="668" y="834" width="326" height="100" rx="8" />
+  <text class="label" x="698" y="870">RAG 후보 검색</text>
+  <text class="small" x="698" y="895">업로드 자료 + 승인 지식문서</text>
+  <text class="code" x="698" y="916">searchKnowledgeEvidence</text>
+
+  <rect class="box box-blue" x="1038" y="834" width="222" height="100" rx="8" />
+  <text class="label" x="1068" y="870">Reranker</text>
+  <text class="small" x="1068" y="895">topK evidence</text>
+  <text class="code" x="1068" y="916">createReranker()</text>
+
+  <rect class="box box-purple" x="668" y="984" width="326" height="112" rx="8" />
+  <text class="label" x="698" y="1019">AI 서브에이전트</text>
+  <text class="small" x="698" y="1044">creative_review / product_terms</text>
+  <text class="small" x="698" y="1067">evidence_verification</text>
+
+  <rect class="box box-red" x="1038" y="984" width="222" height="112" rx="8" />
+  <text class="label" x="1068" y="1019">이슈 생성</text>
+  <text class="small" x="1068" y="1044">모델 finding + 규칙</text>
+  <text class="code" x="1068" y="1067">buildAnalysisIssues</text>
+
+  <rect class="box box-green" x="694" y="1136" width="540" height="42" rx="8" />
+  <text class="label" x="724" y="1164">DB 저장: evidence_chunks · agent_runs · agent_findings · review_issues · evidence</text>
+
+  <path class="arrow" d="M432 1012 C493 1012, 508 314, 560 314" />
+  <path class="arrow" d="M842 313 L916 313" />
+  <path class="arrow" d="M1055 356 L955 408" />
+  <path class="arrow" d="M878 494 L848 548" />
+  <path class="arrow" d="M1016 451 L1062 451" />
+  <path class="arrow" d="M1163 494 C1163 532, 994 522, 916 548" />
+  <path class="arrow" d="M831 638 L831 688" />
+  <path class="arrow" d="M831 784 L831 834" />
+  <path class="arrow" d="M994 884 L1038 884" />
+  <path class="arrow" d="M831 934 L831 984" />
+  <path class="arrow" d="M994 1040 L1038 1040" />
+  <path class="arrow" d="M1149 1096 L1002 1136" />
+
+  <line class="divider" x1="548" y1="656" x2="1280" y2="656" />
+  <text class="lane-caption" x="1040" y="710">모델 라우터</text>
+  <rect class="box box-gray" x="1038" y="724" width="222" height="78" rx="8" />
+  <text class="small" x="1068" y="756">FINPROOF_MODEL_PROVIDER</text>
+  <text class="code" x="1068" y="780">router → OpenAI/Gemini</text>
+  <path class="arrow-soft" d="M1149 802 L1149 984" />
+
+  <text class="lane-caption" x="548" y="704">파일 본문</text>
+  <path class="arrow-soft" d="M432 722 C520 722, 574 724, 668 736" />
+  <text class="tiny" x="486" y="746">S3/local storageKey 기반 읽기</text>
+
+  <text class="lane-caption" x="1040" y="958">근거 후보</text>
+  <path class="arrow-soft" d="M1170 356 C1292 500, 1276 742, 1260 884" />
+  <text class="tiny" x="1166" y="612">Postgres RAG / evidence_chunks</text>
+
+  <!-- Post-analysis lane -->
+  <rect class="box box-blue" x="1390" y="270" width="310" height="90" rx="8" />
+  <text class="label" x="1420" y="305">심의 상세 화면</text>
+  <text class="small" x="1420" y="330">analysis_complete 이후 이슈 검토</text>
+
+  <rect class="box box-blue" x="1390" y="408" width="310" height="110" rx="8" />
+  <text class="label" x="1420" y="443">채팅 답변</text>
+  <text class="code" x="1420" y="468">POST /chat · task: rag_chat</text>
+  <text class="small" x="1420" y="493">이슈 근거 + 승인 지식문서 RAG</text>
+
+  <rect class="box box-orange" x="1390" y="562" width="310" height="92" rx="8" />
+  <text class="label" x="1420" y="597">응답 Sanitizer</text>
+  <text class="small" x="1420" y="622">업로드 파일명 / 내부 evidence id 제거</text>
+
+  <rect class="box box-purple" x="1390" y="720" width="310" height="98" rx="8" />
+  <text class="label" x="1420" y="755">심의의견 초안</text>
+  <text class="code" x="1420" y="780">POST /draft · opinion_draft</text>
+  <text class="small" x="1420" y="803">선택한 채팅 맥락 반영</text>
+
+  <rect class="box box-purple" x="1390" y="864" width="310" height="98" rx="8" />
+  <text class="label" x="1420" y="899">보고서 생성</text>
+  <text class="code" x="1420" y="924">POST /reports/generate</text>
+  <text class="small" x="1420" y="947">report_generation 모델 태스크</text>
+
+  <rect class="box box-green" x="1390" y="1034" width="310" height="82" rx="8" />
+  <text class="label" x="1420" y="1069">저장/표시 결과</text>
+  <text class="small" x="1420" y="1094">draft_versions, chat_messages, reports</text>
+
+  <path class="arrow" d="M1545 360 L1545 408" />
+  <path class="arrow" d="M1545 518 L1545 562" />
+  <path class="arrow" d="M1545 654 L1545 720" />
+  <path class="arrow" d="M1545 818 L1545 864" />
+  <path class="arrow" d="M1545 962 L1545 1034" />
+  <path class="arrow-soft" d="M1234 1157 C1316 1157, 1324 315, 1390 315" />
+  <path class="arrow-soft" d="M1234 1157 C1340 1157, 1338 1074, 1390 1074" />
+
+  <rect x="76" y="1214" width="1648" height="34" rx="6" fill="#ffffff" stroke="#d8dee8" />
+  <text class="tiny" x="96" y="1236">Code anchors: review-service.ts · review-analysis-pipeline.ts · review-subagents.ts · prisma-review-store.ts · review-ai-service.ts · model-router.ts · s3-metadata-storage-adapter.ts</text>
+</svg>

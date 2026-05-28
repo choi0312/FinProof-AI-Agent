@@ -16,7 +16,6 @@ export type ModelRouteTask =
   | "case_search"
   | "retrieval_query"
   | "evidence_verification"
-  | "conflict_resolution"
   | "rag_chat"
   | "opinion_draft"
   | "draft_quality_review"
@@ -222,10 +221,10 @@ export function selectModelRoute(
     return multimodalRoute(task, config, context.complexVisual ? "complex_visual" : undefined);
   }
 
-  if (task === "conflict_resolution") {
+  if (task === "main_compliance") {
     return context.sensitiveOutput
       ? textRoute(task, "highest_precision_text", config, "sensitive_output")
-      : textRoute(task, "escalation_text", config);
+      : textRoute(task, "escalation_text", config, "lead_agent_final_judgment");
   }
 
   if (task === "draft_quality_review") {

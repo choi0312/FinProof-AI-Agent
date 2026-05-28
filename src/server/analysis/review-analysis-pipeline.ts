@@ -6,7 +6,11 @@ import type {
   ReviewIssue,
   RiskLevel
 } from "@/domain/types";
-import { createModelProvider, type ModelProvider } from "@/server/ai/model-provider";
+import {
+  createModelProvider,
+  extractGeminiText,
+  type ModelProvider
+} from "@/server/ai/model-provider";
 import {
   createEmbeddingProvider,
   type EmbeddingProvider
@@ -82,10 +86,21 @@ export type ReviewAnalysisPipeline = {
   run(input: { review: ReviewCase; scope?: ReviewStoreScope }): Promise<AnalysisArtifacts>;
 };
 
+type OcrFetchLike = (
+  input: string,
+  init?: RequestInit
+) => Promise<{
+  ok: boolean;
+  status?: number;
+  statusText?: string;
+  json(): Promise<unknown>;
+}>;
+
 type ReviewAnalysisPipelineOptions = {
   ocrProvider?: OcrProvider;
   ragRetriever?: RagRetriever;
-  reviewStore?: Pick<ReviewStore, "searchKnowledgeEvidence">;
+  reviewStore?: Pick<ReviewStore, "searchKnowledgeEvidence"> &
+    Partial<Pick<ReviewStore, "searchCaseHistoryEvidence">>;
   reranker?: Reranker;
   fileBodyReader?: ReviewFileBodyReader;
   modelProvider?: ModelProvider;
@@ -165,6 +180,30 @@ function metadataOnlyText(file: ReviewFile) {
   ].join("\n");
 }
 
+function sampleFileText(review: ReviewCase, file: ReviewFile) {
+  return [
+    review.promotionalCopy,
+    review.disclosure,
+    review.productDescription,
+    `파일명: ${file.name}`
+  ].join("\n");
+}
+
+function sampleOrMetadataDocument(review: ReviewCase, file: ReviewFile): ExtractedDocument {
+  const isSampleFile = file.storageProvider === "sample";
+
+  return {
+    fileId: file.id,
+    fileName: file.name,
+    storageKey: file.storageKey,
+    text: isSampleFile ? sampleFileText(review, file) : metadataOnlyText(file),
+    confidence: isSampleFile
+      ? Math.min(0.97, Math.max(0.72, file.classificationConfidence))
+      : Math.min(0.68, Math.max(0.45, file.classificationConfidence)),
+    provider: isSampleFile ? "deterministic-sample" : "metadata-only"
+  };
+}
+
 async function extractStoredText(file: ReviewFile, fileBodyReader?: ReviewFileBodyReader) {
   if (!file.storageKey || !fileBodyReader || !isTextLikeFile(file)) {
     return undefined;
@@ -193,24 +232,207 @@ function createDeterministicOcrProvider(fileBodyReader?: ReviewFileBodyReader): 
             };
           }
 
-          const isSampleFile = file.storageProvider === "sample";
+          return sampleOrMetadataDocument(review, file);
+        })
+      );
+    }
+  };
+}
+
+function geminiOcrMimeType(file: ReviewFile): string | undefined {
+  const contentType = file.contentType?.split(";")[0]?.trim().toLowerCase();
+
+  if (contentType === "application/pdf" || contentType?.startsWith("image/")) {
+    return contentType;
+  }
+
+  const fileName = file.name.toLowerCase();
+
+  if (fileName.endsWith(".pdf")) {
+    return "application/pdf";
+  }
+
+  const imageExtensions: Record<string, string> = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".heic": "image/heic",
+    ".heif": "image/heif"
+  };
+  const extension = Object.keys(imageExtensions).find((candidate) => fileName.endsWith(candidate));
+
+  return extension ? imageExtensions[extension] : undefined;
+}
+
+function positiveInteger(env: Record<string, string | undefined>, key: string, fallback: number) {
+  const raw = env[key]?.trim();
+  const parsed = raw ? Number(raw) : Number.NaN;
+
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+function clampConfidence(value: unknown, fallback: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.max(0.45, Math.min(0.99, value));
+}
+
+function parseJsonObject(text: string): Record<string, unknown> | undefined {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  const candidate = fenced ? fenced[1].trim() : trimmed;
+
+  try {
+    const parsed = JSON.parse(candidate);
+
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseGeminiOcrText(rawText: string) {
+  const parsed = parseJsonObject(rawText);
+
+  if (parsed && typeof parsed.text === "string") {
+    return {
+      text: parsed.text.replace(/\s+/g, " ").trim(),
+      confidence: clampConfidence(parsed.confidence, 0.82)
+    };
+  }
+
+  return {
+    text: rawText.replace(/\s+/g, " ").trim(),
+    confidence: 0.78
+  };
+}
+
+function geminiOcrSystemInstruction() {
+  return [
+    "당신은 금융 광고 심의용 OCR 엔진입니다.",
+    "첨부된 PDF 또는 이미지에서 실제로 보이는 텍스트만 추출하세요.",
+    "보이지 않는 문구, 법령 해석, 요약, 추론은 절대 추가하지 마세요.",
+    "표와 줄바꿈은 의미가 보존되도록 평문으로 정리하세요.",
+    '응답은 반드시 JSON 객체 하나로만 작성하세요: {"text":"추출 텍스트","confidence":0.0}'
+  ].join("\n");
+}
+
+function geminiOcrUserPrompt(review: ReviewCase, file: ReviewFile) {
+  return [
+    `심의 ID: ${review.id}`,
+    `파일명: ${file.name}`,
+    `상품군: ${review.productType}`,
+    "이 파일에서 심의에 사용할 수 있는 화면/문서 텍스트를 OCR로 추출하세요."
+  ].join("\n");
+}
+
+export function createGeminiOcrProvider(
+  env: Record<string, string | undefined> = process.env,
+  fileBodyReader?: ReviewFileBodyReader,
+  fetchImpl: OcrFetchLike = fetch
+): OcrProvider {
+  return {
+    async extract({ review, files }) {
+      const apiKey = env.GEMINI_API_KEY?.trim();
+
+      if (!apiKey) {
+        throw new Error("GEMINI_API_KEY is required when FINPROOF_OCR_PROVIDER=gemini");
+      }
+
+      const model = env.FINPROOF_OCR_MODEL?.trim() || "gemini-2.5-flash-lite";
+      const maxInlineBytes = positiveInteger(
+        env,
+        "FINPROOF_OCR_MAX_INLINE_BYTES",
+        20 * 1024 * 1024
+      );
+
+      return Promise.all(
+        files.map(async (file) => {
+          const storedText = await extractStoredText(file, fileBodyReader);
+
+          if (storedText) {
+            return {
+              fileId: file.id,
+              fileName: file.name,
+              storageKey: file.storageKey,
+              text: storedText,
+              confidence: 0.96,
+              provider: "local-text-extractor"
+            };
+          }
+
+          const mimeType = geminiOcrMimeType(file);
+
+          if (!mimeType || !file.storageKey || !fileBodyReader) {
+            return sampleOrMetadataDocument(review, file);
+          }
+
+          const body = await fileBodyReader.getReviewFileBody(file.storageKey);
+
+          if (!body || body.byteLength > maxInlineBytes) {
+            return sampleOrMetadataDocument(review, file);
+          }
+
+          const response = await fetchImpl(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+            {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                "x-goog-api-key": apiKey
+              },
+              body: JSON.stringify({
+                systemInstruction: {
+                  parts: [{ text: geminiOcrSystemInstruction() }]
+                },
+                contents: [
+                  {
+                    role: "user",
+                    parts: [
+                      { text: geminiOcrUserPrompt(review, file) },
+                      {
+                        inlineData: {
+                          mimeType,
+                          data: Buffer.from(body).toString("base64")
+                        }
+                      }
+                    ]
+                  }
+                ],
+                generationConfig: {
+                  temperature: 0
+                }
+              })
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(
+              `Gemini OCR request failed: ${response.status ?? "unknown"} ${
+                response.statusText ?? ""
+              }`.trim()
+            );
+          }
+
+          const extracted = parseGeminiOcrText(extractGeminiText(await response.json()));
+
+          if (!extracted.text) {
+            return sampleOrMetadataDocument(review, file);
+          }
 
           return {
             fileId: file.id,
             fileName: file.name,
             storageKey: file.storageKey,
-            text: isSampleFile
-              ? [
-                  review.promotionalCopy,
-                  review.disclosure,
-                  review.productDescription,
-                  `파일명: ${file.name}`
-                ].join("\n")
-              : metadataOnlyText(file),
-            confidence: isSampleFile
-              ? Math.min(0.97, Math.max(0.72, file.classificationConfidence))
-              : Math.min(0.68, Math.max(0.45, file.classificationConfidence)),
-            provider: isSampleFile ? "deterministic-sample" : "metadata-only"
+            text: extracted.text,
+            confidence: extracted.confidence,
+            provider: "gemini-ocr"
           };
         })
       );
@@ -259,7 +481,8 @@ function createHttpOcrProvider(env: Record<string, string | undefined> = process
 
 function createLexicalRagRetriever(
   env: Record<string, string | undefined> = process.env,
-  reviewStore?: Pick<ReviewStore, "searchKnowledgeEvidence">,
+  reviewStore?: Pick<ReviewStore, "searchKnowledgeEvidence"> &
+    Partial<Pick<ReviewStore, "searchCaseHistoryEvidence">>,
   embeddingProvider: EmbeddingProvider = createEmbeddingProvider(env)
 ): RagRetriever {
   const config = getAnalysisProviderConfig(env);
@@ -296,8 +519,19 @@ function createLexicalRagRetriever(
               queryEmbedding
             })
           : [];
+      const caseHistoryCandidates =
+        reviewStore?.searchCaseHistoryEvidence && scope
+          ? await reviewStore.searchCaseHistoryEvidence(scope, {
+              query,
+              productType: review.productType,
+              topK: config.rag.topK,
+              minScore: config.rag.minScore,
+              queryEmbedding,
+              excludeReviewCaseId: review.id
+            })
+          : [];
 
-      return [...productDocumentCandidates, ...knowledgeCandidates];
+      return [...productDocumentCandidates, ...knowledgeCandidates, ...caseHistoryCandidates];
     }
   };
 }
@@ -309,9 +543,15 @@ function defaultFileBodyReader(): ReviewFileBodyReader {
 function defaultOcrProvider(fileBodyReader?: ReviewFileBodyReader) {
   const config = getAnalysisProviderConfig();
 
-  return config.ocr.provider === "http"
-    ? createHttpOcrProvider()
-    : createDeterministicOcrProvider(fileBodyReader);
+  if (config.ocr.provider === "http") {
+    return createHttpOcrProvider();
+  }
+
+  if (config.ocr.provider === "gemini") {
+    return createGeminiOcrProvider(process.env, fileBodyReader);
+  }
+
+  return createDeterministicOcrProvider(fileBodyReader);
 }
 
 function agentTypeForIssue(issue: ReviewIssue): AgentType {
