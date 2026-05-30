@@ -60,6 +60,10 @@ function defaultHrefForRole(role: RoleId): string {
 }
 
 function canAccessPath(pathname: string, role: RoleId): boolean {
+  if (pathname === "/") {
+    return true;
+  }
+
   if (role === "requester") {
     return pathname.startsWith("/reviews/new");
   }
@@ -106,6 +110,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [activeRole, defaultHref, pathname, router]);
 
+  if (pathname === "/") {
+    return <ErrorBoundary>{children}</ErrorBoundary>;
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -123,6 +131,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <strong>Review Faster. Decide Smarter.</strong>
         </div>
 
+        <span className="sidebar__section-label">Console</span>
         <nav className="sidebar__nav" aria-label="Primary navigation">
           {visibleNavigation.map((item) => {
             const Icon = item.icon;

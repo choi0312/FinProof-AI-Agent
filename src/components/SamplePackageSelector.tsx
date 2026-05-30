@@ -208,6 +208,24 @@ export function SamplePackageSelector(): JSX.Element {
       </div>
 
       <form className="intake-reference-layout" onSubmit={submitUpload}>
+        <section className="intake-console-grid" aria-label="신규 심의 요청 구성">
+          <article>
+            <span>01</span>
+            <strong>요청 정보</strong>
+            <small>상품군, 계열사, 게시 예정일을 먼저 정리합니다.</small>
+          </article>
+          <article>
+            <span>02</span>
+            <strong>자료 패키지</strong>
+            <small>홍보물, 약관, 금리표, 체크리스트를 함께 업로드합니다.</small>
+          </article>
+          <article>
+            <span>03</span>
+            <strong>AI 분류</strong>
+            <small>업로드 자료를 자동 분류하고 누락 자료를 확인합니다.</small>
+          </article>
+        </section>
+
         <section className="intake-main-column">
           <IntakeMetaForm state={meta} onChange={setMeta} />
 

@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { AppShell } from "@/components/AppShell";
 import { RoleProvider } from "@/components/RoleContext";
 import "./globals.css";
+import "./landing-refresh.css";
 
 export const metadata: Metadata = {
   title: "FinProof Agent",
