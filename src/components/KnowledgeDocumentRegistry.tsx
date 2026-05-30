@@ -235,6 +235,7 @@ export function KnowledgeDocumentRegistry(): JSX.Element {
             법령, 내부 정책, 체크리스트를 한곳에 정리해 금융 광고 심의의 기준 근거로
             사용할 수 있습니다.
           </p>
+          <p className="knowledge-page__slogan">Review Faster. Decide Smarter.</p>
         </div>
         <div className="knowledge-page__metrics" aria-label="지식문서 등록 현황">
           <div>

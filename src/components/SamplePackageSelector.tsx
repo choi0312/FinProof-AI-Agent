@@ -189,7 +189,16 @@ export function SamplePackageSelector(): JSX.Element {
     <div className="intake-flow">
       <div className="intake-title-row">
         <div>
+          <span className="product-eyebrow">Guided intake</span>
           <h2>신규 심의 요청</h2>
+          <p>
+            자료 업로드부터 자동 분류까지 한 흐름으로 정리해 심의자가 바로 판단할 수 있게
+            준비합니다.
+          </p>
+        </div>
+        <div className="intake-title-row__promise" aria-label="FinProof slogan">
+          <strong>검토는 빠르게, 판단은 정확하게</strong>
+          <span>Review Faster. Decide Smarter.</span>
         </div>
         <IntakeStepper
           hasTitle={meta.title.trim().length > 0}

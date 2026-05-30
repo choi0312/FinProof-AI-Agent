@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "FinProof Agent",
-  description: "Evidence-based financial advertising review workspace"
+  description: "검토는 빠르게, 판단은 정확하게. Review Faster. Decide Smarter."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

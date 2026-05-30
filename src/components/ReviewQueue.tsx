@@ -332,12 +332,19 @@ export function ReviewQueue(): JSX.Element {
     <div className="review-queue">
       <section className="queue-head">
         <div>
+          <span className="product-eyebrow">FinProof review console</span>
           <h2>{scope === "history" ? "심의 이력" : "심의 대기 목록"}</h2>
           <p>
             {scope === "history"
               ? "승인 또는 반려 판단이 완료된 심의 건을 확인합니다."
               : "업로드된 심의 요청을 확인하고 분석 대기 건을 배정합니다."}
           </p>
+          <p className="queue-head__slogan">검토는 빠르게, 판단은 정확하게</p>
+        </div>
+        <div className="queue-head__summary" aria-label="FinProof operating promise">
+          <span>Review Faster</span>
+          <strong>Decide Smarter.</strong>
+          <small>AI 근거 검색과 심의 워크플로우를 한 화면에서 관리합니다.</small>
         </div>
       </section>
 
