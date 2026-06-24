@@ -46,21 +46,128 @@ FinProof Agent는 이 병목을 “자료 업로드 → AI 선분석 → 근거 
 
 ## AI Agent Architecture
 
-FinProof Agent는 단일 LLM 호출이 아니라 업무 단계를 분리한 Agent/RAG 구조를 목표로 합니다.
+FinProof Agent는 단일 LLM 호출이 아니라 심의 업무를 여러 계층으로 분리한 Agent/RAG 아키텍처를 목표로 합니다. 프론트엔드 워크벤치, API orchestration, 분석 파이프라인, RAG 지식 계층, 영속 저장소를 분리해 각 영역을 독립적으로 교체·확장할 수 있도록 설계했습니다.
 
 ```mermaid
-flowchart LR
-  Upload["Review Package Upload"] --> Classify["File Classification"]
-  Classify --> OCR["OCR / Text Extraction"]
-  OCR --> RAG["RAG Retrieval"]
-  RAG --> Evidence["Evidence Candidates"]
-  Evidence --> Agents["Domain Sub Agents"]
-  Agents --> Lead["Main Compliance Agent"]
-  Lead --> Issues["Risk Issues + Highlights"]
-  Issues --> Workbench["Reviewer Workbench"]
-  Workbench --> Decision["Human Final Decision"]
-  Decision --> Report["Opinion Draft / Report"]
+flowchart TB
+  subgraph Users["User Roles"]
+    Requester["Requester<br/>Marketing / Product Team"]
+    Reviewer["Reviewer<br/>Compliance Officer"]
+    Admin["Compliance Admin<br/>Policy Manager"]
+  end
+
+  subgraph Console["FinProof Web Console"]
+    Landing["Landing / Product Intro"]
+    Intake["Review Intake<br/>Package Upload"]
+    Queue["Review Queue"]
+    Workbench["Review Workbench<br/>Issue + Evidence + Decision"]
+    KnowledgeUI["Knowledge Document Registry"]
+    Dashboard["Compliance Dashboard"]
+  end
+
+  subgraph APILayer["Next.js API & Service Layer"]
+    Routes["API Routes<br/>/api/v1"]
+    ReviewService["Review Service<br/>workflow orchestration"]
+    KnowledgeService["Knowledge Service<br/>document approval / ingestion"]
+    Auth["Auth & RBAC<br/>JWT / demo role mode"]
+  end
+
+  subgraph Analysis["AI Analysis Pipeline"]
+    IntakeGate["File Classification<br/>missing-material gate"]
+    OCR["OCR / Text Extraction"]
+    Retrieval["RAG Retrieval<br/>knowledge + product + case history"]
+    Rerank["Rerank & Evidence Selection"]
+    DomainAgents["Parallel Domain Sub Agents"]
+    LeadAgent["Main Compliance Agent<br/>conflict resolution"]
+    IssueBuilder["Issue Builder<br/>risk score + bbox + suggested copy"]
+  end
+
+  subgraph Agents["Specialized Agent Set"]
+    Creative["Creative Review Agent"]
+    Terms["Product Terms Agent"]
+    Regulation["Regulation Agent"]
+    Policy["Internal Policy Agent"]
+    CaseAgent["Case Search Agent"]
+    EvidenceCheck["Evidence Verification Agent"]
+  end
+
+  subgraph Persistence["Persistence & Storage"]
+    Postgres["PostgreSQL / Prisma<br/>review cases, issues, audit logs"]
+    Vector["pgvector-ready Evidence Chunks<br/>semantic retrieval"]
+    ObjectStore["Object Storage<br/>local metadata / S3 adapter"]
+    Reports["Reports & Draft Versions"]
+  end
+
+  subgraph Outputs["Reviewer Outputs"]
+    Highlights["Poster Highlights<br/>risk region tooltip"]
+    EvidencePanel["Evidence Panel<br/>source traceability"]
+    RagChat["RAG Chat<br/>grounded Q&A"]
+    Decision["Human Final Decision<br/>approve / request change / reject / hold"]
+    Report["Opinion Draft / Review Report"]
+  end
+
+  Requester --> Intake
+  Reviewer --> Queue
+  Reviewer --> Workbench
+  Admin --> KnowledgeUI
+  Queue --> Workbench
+  Landing --> Intake
+  Dashboard --> Queue
+
+  Intake --> Routes
+  Workbench --> Routes
+  KnowledgeUI --> Routes
+  Routes --> Auth
+  Routes --> ReviewService
+  Routes --> KnowledgeService
+
+  ReviewService --> IntakeGate
+  IntakeGate --> OCR
+  OCR --> Retrieval
+  Retrieval --> Rerank
+  Rerank --> DomainAgents
+  DomainAgents --> Creative
+  DomainAgents --> Terms
+  DomainAgents --> Regulation
+  DomainAgents --> Policy
+  DomainAgents --> CaseAgent
+  DomainAgents --> EvidenceCheck
+  Creative --> LeadAgent
+  Terms --> LeadAgent
+  Regulation --> LeadAgent
+  Policy --> LeadAgent
+  CaseAgent --> LeadAgent
+  EvidenceCheck --> LeadAgent
+  LeadAgent --> IssueBuilder
+
+  KnowledgeService --> Vector
+  KnowledgeService --> Postgres
+  ReviewService --> Postgres
+  ReviewService --> ObjectStore
+  Retrieval --> Vector
+  OCR --> ObjectStore
+  IssueBuilder --> Postgres
+  Decision --> Postgres
+  Report --> Reports
+  Reports --> Postgres
+
+  IssueBuilder --> Highlights
+  IssueBuilder --> EvidencePanel
+  EvidencePanel --> RagChat
+  Workbench --> Highlights
+  Workbench --> EvidencePanel
+  Workbench --> RagChat
+  Workbench --> Decision
+  Decision --> Report
 ```
+
+### Architecture Highlights
+
+- **Layered SaaS structure**: UI, API orchestration, AI analysis, RAG retrieval, persistence, and storage are separated to keep the system maintainable.
+- **Agent orchestration**: domain-specific Sub Agents analyze different risk dimensions, then a Main Compliance Agent consolidates conflicts and produces final issue candidates.
+- **Grounded RAG flow**: OCR/Text extraction feeds knowledge retrieval, reranking, Evidence selection, RAG chat, and report generation.
+- **Traceable compliance decisions**: each issue can retain risk level, target text, highlight bounding box, source agents, evidence, reviewer decision, audit history, and generated report context.
+- **Provider-swappable backend**: OCR, embedding, rerank, model, storage, and review store providers are controlled through environment variables, allowing deterministic demo mode and production-oriented integrations.
 
 ### Sub Agent Roles
 
