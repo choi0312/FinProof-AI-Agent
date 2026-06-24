@@ -573,7 +573,11 @@ describe("ReviewDetailWorkspace", () => {
     await user.click(screen.getByRole("button", { name: "질문 보내기" }));
     expect(await screen.findByText("첫 번째 이슈 전용 답변입니다.")).toBeInTheDocument();
 
-    await user.click(screen.getByText("조건부 혜택의 무조건 표현"));
+    await user.click(
+      within(screen.getByLabelText("이슈 목록 스크롤 영역")).getByRole("button", {
+        name: /조건부 혜택의 무조건 표현/
+      })
+    );
 
     expect(screen.getByText("첫 번째 이슈 전용 답변입니다.")).toBeInTheDocument();
 
@@ -1014,7 +1018,11 @@ describe("ReviewDetailWorkspace", () => {
     await user.click(screen.getByRole("button", { name: "위험도 변경" }));
     expect(screen.getByRole("button", { name: "저장 중" })).toBeDisabled();
 
-    await user.click(screen.getByText("조건부 혜택의 무조건 표현"));
+    await user.click(
+      within(screen.getByLabelText("이슈 목록 스크롤 영역")).getByRole("button", {
+        name: /조건부 혜택의 무조건 표현/
+      })
+    );
     resolvePatch({
       ok: true,
       json: async () => ({
