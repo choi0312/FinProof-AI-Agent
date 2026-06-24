@@ -46,128 +46,81 @@ FinProof Agent는 이 병목을 “자료 업로드 → AI 선분석 → 근거 
 
 ## AI Agent Architecture
 
-FinProof Agent는 단일 LLM 호출이 아니라 심의 업무를 여러 계층으로 분리한 Agent/RAG 아키텍처를 목표로 합니다. 프론트엔드 워크벤치, API orchestration, 분석 파이프라인, RAG 지식 계층, 영속 저장소를 분리해 각 영역을 독립적으로 교체·확장할 수 있도록 설계했습니다.
+FinProof Agent는 단일 LLM 호출이 아니라 심의 자료, 근거 검색, 도메인 Agent, 심의자 판단, 산출물 생성을 분리한 구조입니다. 핵심은 AI가 위험 후보와 근거를 만들고, 최종 판단은 심의자가 수행하도록 시스템 경계를 명확히 두는 것입니다.
 
 ```mermaid
-flowchart TB
-  subgraph Users["User Roles"]
-    Requester["Requester<br/>Marketing / Product Team"]
-    Reviewer["Reviewer<br/>Compliance Officer"]
-    Admin["Compliance Admin<br/>Policy Manager"]
-  end
-
-  subgraph Console["FinProof Web Console"]
-    Landing["Landing / Product Intro"]
-    Intake["Review Intake<br/>Package Upload"]
-    Queue["Review Queue"]
-    Workbench["Review Workbench<br/>Issue + Evidence + Decision"]
-    KnowledgeUI["Knowledge Document Registry"]
-    Dashboard["Compliance Dashboard"]
-  end
-
-  subgraph APILayer["Next.js API & Service Layer"]
-    Routes["API Routes<br/>/api/v1"]
-    ReviewService["Review Service<br/>workflow orchestration"]
-    KnowledgeService["Knowledge Service<br/>document approval / ingestion"]
-    Auth["Auth & RBAC<br/>JWT / demo role mode"]
-  end
-
-  subgraph Analysis["AI Analysis Pipeline"]
-    IntakeGate["File Classification<br/>missing-material gate"]
+flowchart LR
+  subgraph Input["1. Review Intake"]
+    Package["Review Package<br/>ad creative, terms, product docs"]
+    Classify["Auto Classification<br/>missing-material gate"]
     OCR["OCR / Text Extraction"]
-    Retrieval["RAG Retrieval<br/>knowledge + product + case history"]
-    Rerank["Rerank & Evidence Selection"]
-    DomainAgents["Parallel Domain Sub Agents"]
-    LeadAgent["Main Compliance Agent<br/>conflict resolution"]
-    IssueBuilder["Issue Builder<br/>risk score + bbox + suggested copy"]
   end
 
-  subgraph Agents["Specialized Agent Set"]
-    Creative["Creative Review Agent"]
+  subgraph Knowledge["2. Evidence Layer"]
+    KnowledgeDocs["Approved Knowledge Docs<br/>law, policy, checklist"]
+    ProductDocs["Product & Uploaded Docs"]
+    CaseHistory["Past Review Cases"]
+    Retrieval["RAG Retrieval + Reranking"]
+  end
+
+  subgraph AgentLayer["3. AI Agent Layer"]
+    Creative["Creative Agent"]
     Terms["Product Terms Agent"]
-    Regulation["Regulation Agent"]
-    Policy["Internal Policy Agent"]
-    CaseAgent["Case Search Agent"]
-    EvidenceCheck["Evidence Verification Agent"]
+    Policy["Regulation / Policy Agent"]
+    Lead["Main Compliance Agent"]
   end
 
-  subgraph Persistence["Persistence & Storage"]
-    Postgres["PostgreSQL / Prisma<br/>review cases, issues, audit logs"]
-    Vector["pgvector-ready Evidence Chunks<br/>semantic retrieval"]
-    ObjectStore["Object Storage<br/>local metadata / S3 adapter"]
-    Reports["Reports & Draft Versions"]
+  subgraph Review["4. Reviewer Workbench"]
+    Issues["Risk Issues<br/>risk level + target text"]
+    Highlights["Poster Highlights<br/>hover reason tooltip"]
+    Evidence["Evidence Panel"]
+    Chat["RAG Chat"]
+    Decision["Human Final Decision"]
   end
 
-  subgraph Outputs["Reviewer Outputs"]
-    Highlights["Poster Highlights<br/>risk region tooltip"]
-    EvidencePanel["Evidence Panel<br/>source traceability"]
-    RagChat["RAG Chat<br/>grounded Q&A"]
-    Decision["Human Final Decision<br/>approve / request change / reject / hold"]
-    Report["Opinion Draft / Review Report"]
+  subgraph System["5. System Foundation"]
+    API["Next.js API Routes<br/>Review Service"]
+    DB["PostgreSQL / Prisma<br/>issues, evidence, audit logs"]
+    Storage["Object Storage<br/>local metadata / S3"]
+    Reports["Drafts & Reports"]
   end
 
-  Requester --> Intake
-  Reviewer --> Queue
-  Reviewer --> Workbench
-  Admin --> KnowledgeUI
-  Queue --> Workbench
-  Landing --> Intake
-  Dashboard --> Queue
+  Package --> Classify --> OCR
+  OCR --> ProductDocs
+  KnowledgeDocs --> Retrieval
+  ProductDocs --> Retrieval
+  CaseHistory --> Retrieval
+  Retrieval --> Creative
+  Retrieval --> Terms
+  Retrieval --> Policy
+  Creative --> Lead
+  Terms --> Lead
+  Policy --> Lead
+  Lead --> Issues
+  Issues --> Highlights
+  Issues --> Evidence
+  Evidence --> Chat
+  Chat --> Decision
+  Decision --> Reports
 
-  Intake --> Routes
-  Workbench --> Routes
-  KnowledgeUI --> Routes
-  Routes --> Auth
-  Routes --> ReviewService
-  Routes --> KnowledgeService
-
-  ReviewService --> IntakeGate
-  IntakeGate --> OCR
-  OCR --> Retrieval
-  Retrieval --> Rerank
-  Rerank --> DomainAgents
-  DomainAgents --> Creative
-  DomainAgents --> Terms
-  DomainAgents --> Regulation
-  DomainAgents --> Policy
-  DomainAgents --> CaseAgent
-  DomainAgents --> EvidenceCheck
-  Creative --> LeadAgent
-  Terms --> LeadAgent
-  Regulation --> LeadAgent
-  Policy --> LeadAgent
-  CaseAgent --> LeadAgent
-  EvidenceCheck --> LeadAgent
-  LeadAgent --> IssueBuilder
-
-  KnowledgeService --> Vector
-  KnowledgeService --> Postgres
-  ReviewService --> Postgres
-  ReviewService --> ObjectStore
-  Retrieval --> Vector
-  OCR --> ObjectStore
-  IssueBuilder --> Postgres
-  Decision --> Postgres
-  Report --> Reports
-  Reports --> Postgres
-
-  IssueBuilder --> Highlights
-  IssueBuilder --> EvidencePanel
-  EvidencePanel --> RagChat
-  Workbench --> Highlights
-  Workbench --> EvidencePanel
-  Workbench --> RagChat
-  Workbench --> Decision
-  Decision --> Report
+  API -.orchestrates.-> Classify
+  API -.orchestrates.-> Retrieval
+  API -.orchestrates.-> Lead
+  API -.serves.-> Review
+  DB -.persists.-> Issues
+  DB -.persists.-> Evidence
+  DB -.persists.-> Decision
+  Storage -.stores.-> Package
+  Reports -.saved in.-> DB
 ```
 
 ### Architecture Highlights
 
-- **Layered SaaS structure**: UI, API orchestration, AI analysis, RAG retrieval, persistence, and storage are separated to keep the system maintainable.
-- **Agent orchestration**: domain-specific Sub Agents analyze different risk dimensions, then a Main Compliance Agent consolidates conflicts and produces final issue candidates.
-- **Grounded RAG flow**: OCR/Text extraction feeds knowledge retrieval, reranking, Evidence selection, RAG chat, and report generation.
-- **Traceable compliance decisions**: each issue can retain risk level, target text, highlight bounding box, source agents, evidence, reviewer decision, audit history, and generated report context.
-- **Provider-swappable backend**: OCR, embedding, rerank, model, storage, and review store providers are controlled through environment variables, allowing deterministic demo mode and production-oriented integrations.
+- **Input separation**: uploaded files are first classified and normalized before AI analysis starts.
+- **Evidence-first RAG**: approved policies, product documents, uploaded materials, and past cases are retrieved before Agent judgment.
+- **Focused Agent chain**: specialized agents review creative risk, product-term consistency, and policy/regulation risk; the Main Compliance Agent consolidates them.
+- **Reviewer control**: AI creates risk issues, highlights, evidence, and draft suggestions, but the reviewer makes the final decision.
+- **Traceable storage**: review cases, issues, evidence, audit logs, reports, and source files are persisted through Prisma/PostgreSQL and storage adapters.
 
 ### Sub Agent Roles
 
@@ -212,7 +165,7 @@ flowchart TB
 - 심의 리포트 Markdown 다운로드
 - 심의 판단, 근거, 채팅 맥락을 산출물에 반영
 
-### Portfolio Landing
+### Product Landing
 
 - B2B 금융 SaaS 스타일 랜딩 페이지
 - 서비스 흐름을 설명하는 스크롤 기반 섹션
@@ -322,7 +275,7 @@ Do not commit secrets. Use `.env.example` as the safe reference file.
 
 ## Repository Notes
 
-This repository is organized as a portfolio-ready implementation of the FinProof MVP concept. It includes frontend UX, API routes, mock-first local execution, Prisma-backed persistence structure, AI/RAG service boundaries, storage adapters, and deployment operation notes.
+This repository implements the FinProof MVP concept with frontend UX, API routes, mock-first local execution, Prisma-backed persistence structure, AI/RAG service boundaries, storage adapters, and deployment operation notes.
 
 Current implementation emphasizes:
 
@@ -353,8 +306,8 @@ The production build can show a Turbopack file tracing warning related to server
 
 ## Disclaimer
 
-This project is a portfolio/MVP implementation. A real financial institution deployment requires updated internal policies, legal/compliance review, security controls, model governance, privacy review, and production-grade monitoring.
+This project is an MVP implementation. A real financial institution deployment requires updated internal policies, legal/compliance review, security controls, model governance, privacy review, and production-grade monitoring.
 
 ## License
 
-Portfolio project. All rights reserved unless a separate license is added.
+All rights reserved unless a separate license is added.
